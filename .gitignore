@@ -1,0 +1,16 @@
+__pycache__/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Secrets and OS cruft — never commit these.
+.env
+.env.*
+.DS_Store
+
+# Generated per-document cache/report files. Ignore them if the cache should be
+# rebuilt locally; uncomment to keep them out of the repo. Leave committed if you
+# want the cache to travel with the repo.
+# results/*.json

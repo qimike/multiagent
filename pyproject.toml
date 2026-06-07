@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multiagent-governance"
+version = "0.1.0"
+description = "Multi-agent document-governance pipeline (Security / Data / Resilient) built on the Claude Agent SDK."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "multiAgent" }]
+keywords = ["claude", "agent-sdk", "governance", "multi-agent", "conformance"]
+
+# Runtime dependencies (this file is the single source of truth).
+dependencies = [
+    # AgentDefinition.skills (Python) requires claude-agent-sdk >= 0.1.49.
+    "claude-agent-sdk>=0.1.49",
+    # Used by the Resilient-domain custom tool (agents/resilient/tools.py: call_api).
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# Dev tooling: `pip install -e ".[dev]"`
+dev = [
+    "ruff>=0.6",
+]
+
+[project.scripts]
+# After `pip install -e .`:  governance-review   /   governance-review --force
+governance-review = "main_orchestrator:run"
+
+[project.urls]
+Homepage = "https://github.com/JaneCS2025/multiAgent"
+
+# ---------------------------------------------------------------------------
+# Packaging
+# ---------------------------------------------------------------------------
+# This repo has BOTH a module `agents.py` and a directory `agents/`, which breaks
+# setuptools' automatic package discovery. Declaring `py-modules` explicitly turns
+# auto-discovery off and installs just these top-level modules. The pipeline runs
+# from the source tree (it resolves agents/<domain>/tools.py and .claude/skills via
+# Path(__file__).parent at runtime), so an editable install (`pip install -e .`) is
+# the intended usage.
+[tool.setuptools]
+py-modules = [
+    "main_orchestrator",
+    "orchestrator_native_subagents",
+    "agents",
+    "schema",
+    "shared_tools",
+]
+
+# ---------------------------------------------------------------------------
+# Tooling
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# pycodestyle (E/W), pyflakes (F), isort (I), pyupgrade (UP), flake8-bugbear (B).
+select = ["E", "W", "F", "I", "UP", "B"]

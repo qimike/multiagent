@@ -1,0 +1,65 @@
+flowchart TD
+    subgraph INPUT["documents/*.md  (## [Tag] headings)"]
+        DOC["source.md (and any other *.md)"]
+    end
+
+    subgraph CACHE["Cache layer  (results/&lt;doc&gt;.json)"]
+        HASH["content_hash(text) = sha256[:12]"]
+        LOOKUP{"cache file exists<br/>and hash matches?<br/>(unless --force)"}
+    end
+
+    DOC --> HASH --> LOOKUP
+    LOOKUP -- "cache hit -> skip testing" --> REPORT["results/&lt;doc&gt;.json<br/>(returned as-is, no model calls)"]
+    LOOKUP -- "miss / changed / --force" --> ORCH
+
+    subgraph ORCH["Orchestrator (plain Python, deterministic)"]
+        SPLIT["split into ## sections"]
+        ROUTE["route by [Tag] — ONE section -> ONE agent<br/>no overlap; untagged/unknown -> DEFAULT_OWNER (Resilient) + warning"]
+        SPLIT --> ROUTE
+    end
+
+    ROUTE -- "[Security] sections" --> SEC
+    ROUTE -- "[Data] sections" --> DAT
+    ROUTE -- "[Resilient] sections + fallbacks" --> RES
+    ROUTE -. "agent with no sections -> skipped (NOT_APPLICABLE placeholder)" .-> SKIP["(skipped, not called)"]
+
+    subgraph AGENTS["Domain agents — isolated query() calls, run in parallel"]
+        SEC["Security agent"]
+        DAT["Data agent"]
+        RES["Resilient agent"]
+    end
+
+    subgraph SKILLS["Skills (.claude/skills, via setting_sources=project)"]
+        SK0["conformance-common (shared)"]
+        SK1["security-review"]
+        SK2["data-review"]
+        SK3["resilient-review (TODO: resilience criteria)"]
+    end
+
+    subgraph TOOLS["Custom tools (MCP servers, mcp__server__tool)"]
+        TSH["shared: policy_version"]
+        TS1["security: check_secret_in_vault"]
+        TS2["data: check_pii_classification, check_record_exists"]
+        TS3["resilient: call_api (TODO: resilience probes)"]
+    end
+
+    SK0 -.load.-> SEC & DAT & RES
+    SK1 -.load.-> SEC
+    SK2 -.load.-> DAT
+    SK3 -.load.-> RES
+    TSH -.call.-> SEC & DAT & RES
+    TS1 -.call.-> SEC
+    TS2 -.call.-> DAT
+    TS3 -.call.-> RES
+
+    SEC --> VAL
+    DAT --> VAL
+    RES --> VAL
+
+    subgraph MERGE["Orchestrator (deterministic)"]
+        VAL["validate_agent_output + detect_conflicts"]
+    end
+
+    VAL --> SYN["Synthesis agent — separate isolated query()"]
+    SYN --> WRITE["write results/&lt;doc&gt;.json<br/>(3 domain results + synthesis + source_file + content_hash)"]
+    WRITE --> REPORT

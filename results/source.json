@@ -1,0 +1,236 @@
+{
+  "domain_results": {
+    "Security": {
+      "domain": "Security",
+      "status": "PARTIALLY_COMPLIANT",
+      "conformance_score": 55,
+      "evidence": [
+        {
+          "source_text": "All external API calls authenticate via OAuth2 using the corporate identity provider (SSO).",
+          "guideline": "All externally exposed APIs must use an approved authentication method (OAuth2, OIDC, or corporate SSO).",
+          "assessment": "Compliant"
+        },
+        {
+          "source_text": "Service-to-service traffic uses short-lived bearer tokens.",
+          "guideline": "Service-to-service calls must use short-lived credentials, not static secrets.",
+          "assessment": "Compliant"
+        },
+        {
+          "source_text": "Traffic between clients and the API gateway is encrypted using TLS 1.2.",
+          "guideline": "Data must be encrypted in transit using TLS 1.2 or higher.",
+          "assessment": "Compliant"
+        },
+        {
+          "source_text": "Role definitions exist for \"reader\" and \"admin\", though the mapping of roles to specific endpoints has not yet been finalized.",
+          "guideline": "A least-privilege role model must be defined, and every endpoint/resource mapped to permitted roles.",
+          "assessment": "Partial"
+        },
+        {
+          "source_text": "Database credentials are currently stored in application configuration files and rotated manually each quarter.",
+          "guideline": "Secrets must be stored in an approved vault, not in config files, with automated rotation.",
+          "assessment": "Non-compliant"
+        }
+      ],
+      "violations": [
+        {
+          "guideline": "Every endpoint/resource must be mapped to the roles permitted to access it.",
+          "reason": "Roles 'reader' and 'admin' are defined, but the mapping of roles to specific endpoints is not finalized, so least-privilege access cannot be confirmed. Elevated-role requirement for admin actions is also not stated."
+        },
+        {
+          "guideline": "Secrets must be stored in an approved secrets vault and not in plain configuration files.",
+          "reason": "Database credentials are stored in application configuration files. Vault verification returned 'unknown' (no live vault configured), and the document explicitly states config-file storage."
+        },
+        {
+          "guideline": "Automated rotation is required for high-value secrets.",
+          "reason": "Database credentials are rotated manually each quarter, not automatically."
+        },
+        {
+          "guideline": "Sensitive data must be encrypted at rest.",
+          "reason": "Encryption at rest for data stores is not addressed in the section."
+        }
+      ],
+      "recommendations": [
+        "Finalize and document the mapping of each endpoint/resource to the roles ('reader', 'admin') permitted to access it, and require an elevated role for administrative actions.",
+        "Move database credentials out of application configuration files into an approved secrets vault (e.g., HashiCorp Vault or cloud KMS/Secrets Manager).",
+        "Enable automated rotation for database credentials instead of manual quarterly rotation.",
+        "Document encryption-at-rest controls for sensitive data stores.",
+        "Document network access restrictions to data stores and confirm no internal services are publicly exposed without approval."
+      ],
+      "confidence": 0.85,
+      "exceptions": [
+        "Vault check for 'database credentials' returned 'unknown' (no live vault configured); assessment relies on the document's stated config-file storage.",
+        "Network Security guidelines (restricted access to data stores, public exposure of internal services) are not addressed in the section and could not be assessed.",
+        "Assessed against conformance policy version 2026.1 (effective 2026-01-01)."
+      ]
+    },
+    "Data": {
+      "domain": "Data",
+      "status": "PARTIALLY_COMPLIANT",
+      "conformance_score": 52,
+      "evidence": [
+        {
+          "source_text": "Source systems publish change events to Kafka. A streaming job lands raw events in Snowflake, where dbt models transform them into the unified customer profile.",
+          "guideline": "The design MUST state the data platform and processing pattern.",
+          "assessment": "Compliant"
+        },
+        {
+          "source_text": "A streaming job lands raw events in Snowflake ... A separate nightly batch job reconciles records that arrive late.",
+          "guideline": "Streaming vs. batch boundaries MUST be explicit.",
+          "assessment": "Compliant"
+        },
+        {
+          "source_text": "A separate nightly batch job reconciles records that arrive late.",
+          "guideline": "Late-arriving/duplicate data handling and reconciliation frequency/ownership SHOULD be described.",
+          "assessment": "Partial"
+        },
+        {
+          "source_text": "Data lineage is partially captured through dbt's built-in documentation.",
+          "guideline": "End-to-end lineage from source to consumption MUST be described or captured; partial lineage is a gap.",
+          "assessment": "Partial"
+        },
+        {
+          "source_text": "The platform stores email, phone, and address fields. Data classification has been discussed but is not yet documented.",
+          "guideline": "Any personal data (PII) MUST be identified and classified.",
+          "assessment": "Non-compliant"
+        },
+        {
+          "source_text": "there is no defined retention period for raw events or historical profiles.",
+          "guideline": "A retention period MUST be defined for both raw and derived/historical data.",
+          "assessment": "Non-compliant"
+        }
+      ],
+      "violations": [
+        {
+          "guideline": "PII must be identified and classified, with per-level handling requirements referenced.",
+          "reason": "Email, phone, and address (PII) are stored, but classification is only discussed and not documented; catalog lookup for 'customer_profile' returned unknown (no live catalog), so no classification could be confirmed."
+        },
+        {
+          "guideline": "Retention must be defined for raw and derived/historical data, with deletion/archival behavior specified.",
+          "reason": "No retention period is defined for raw events or historical profiles, and no deletion or archival behavior is specified."
+        },
+        {
+          "guideline": "End-to-end lineage from source to consumption MUST be described or captured.",
+          "reason": "Lineage is only partially captured via dbt documentation; source-to-consumption coverage (including REST API and nightly export) is incomplete."
+        }
+      ],
+      "recommendations": [
+        "Document PII classification for email, phone, and address fields and reference per-classification-level handling requirements.",
+        "Define and document retention periods for both raw events and historical profiles, including deletion or archival behavior.",
+        "Complete end-to-end lineage from source systems through to the REST API and nightly analytics export, beyond dbt's partial documentation.",
+        "Specify ownership for the nightly reconciliation job to complement its defined (nightly) frequency."
+      ],
+      "confidence": 0.88,
+      "exceptions": [
+        "PII classification could not be verified via tooling: check_pii_classification for 'customer_profile' returned 'unknown' (no live data catalog configured); assessment relies on document text.",
+        "No specific record/profile id was referenced in the section, so check_record_exists was not applicable.",
+        "Assessed against conformance policy version 2026.1 (effective 2026-01-01)."
+      ]
+    },
+    "Resilient": {
+      "domain": "Resilient",
+      "status": "PARTIALLY_COMPLIANT",
+      "conformance_score": 48,
+      "evidence": [
+        {
+          "source_text": "The service runs on the shared Kubernetes cluster with autoscaling enabled.",
+          "guideline": "Scalability & degradation \u2014 autoscaling, load limits, graceful degradation.",
+          "assessment": "Partial"
+        },
+        {
+          "source_text": "On-call rotation is handled by the platform team.",
+          "guideline": "Incident response \u2014 on-call, runbooks, escalation paths documented.",
+          "assessment": "Partial"
+        }
+      ],
+      "violations": [
+        {
+          "guideline": "Operational ownership, SLAs, and support model SHOULD be described (availability targets / SLOs defined).",
+          "reason": "The section explicitly states there is no documented SLA for the new API."
+        },
+        {
+          "guideline": "Incident response \u2014 runbooks and escalation paths documented.",
+          "reason": "The section explicitly states there is no incident runbook for the new API yet; only on-call rotation exists."
+        }
+      ],
+      "recommendations": [
+        "Define and document an SLA/SLO (uptime and latency targets) with a named owner before go-live.",
+        "Author an incident runbook covering common failure modes and escalation paths for the new API.",
+        "Document load limits and graceful-degradation behavior alongside autoscaling configuration."
+      ],
+      "confidence": 0.82,
+      "exceptions": [
+        "No information on failover/redundancy (multi-AZ/region) or disaster recovery (backups, RTO/RPO) was provided, so those resilience areas could not be assessed.",
+        "No monitoring/alerting or health-check coverage is mentioned in the section."
+      ]
+    }
+  },
+  "conflicts": [],
+  "synthesis": {
+    "overall_status": "PARTIALLY_COMPLIANT",
+    "overall_score": 52,
+    "domain_scores": {
+      "Security": 55,
+      "Data": 52,
+      "Resilient": 48
+    },
+    "top_risks": [
+      {
+        "domain": "Security",
+        "risk": "Database credentials are stored in plain application configuration files instead of an approved secrets vault, with only manual quarterly rotation.",
+        "severity": "HIGH"
+      },
+      {
+        "domain": "Data",
+        "risk": "PII (email, phone, address) is stored but data classification is undocumented, so per-level handling requirements cannot be confirmed.",
+        "severity": "HIGH"
+      },
+      {
+        "domain": "Data",
+        "risk": "No retention period is defined for raw events or historical profiles, and no deletion/archival behavior is specified.",
+        "severity": "HIGH"
+      },
+      {
+        "domain": "Resilient",
+        "risk": "No documented SLA/SLO (uptime or latency targets) and no named operational owner for the new API.",
+        "severity": "HIGH"
+      },
+      {
+        "domain": "Resilient",
+        "risk": "No incident runbook or documented escalation path for the new API; only an on-call rotation exists.",
+        "severity": "MEDIUM"
+      },
+      {
+        "domain": "Security",
+        "risk": "Role-to-endpoint mapping is not finalized, so least-privilege access cannot be confirmed.",
+        "severity": "MEDIUM"
+      },
+      {
+        "domain": "Security",
+        "risk": "Encryption at rest for data stores is not addressed.",
+        "severity": "MEDIUM"
+      },
+      {
+        "domain": "Data",
+        "risk": "End-to-end lineage is only partially captured via dbt; source-to-consumption coverage (REST API, nightly export) is incomplete.",
+        "severity": "MEDIUM"
+      }
+    ],
+    "conflicts": [],
+    "deduplicated_recommendations": [
+      "Move database credentials out of application configuration files into an approved secrets vault (e.g., HashiCorp Vault or cloud KMS/Secrets Manager) and enable automated rotation in place of manual quarterly rotation.",
+      "Finalize and document the mapping of each endpoint/resource to permitted roles ('reader', 'admin'), requiring an elevated role for administrative actions.",
+      "Document encryption-at-rest controls for sensitive data stores.",
+      "Document network access restrictions to data stores and confirm no internal services are publicly exposed without approval.",
+      "Document and reference PII classification for email, phone, and address fields, including per-classification-level handling requirements.",
+      "Define and document retention periods for both raw events and historical profiles, including deletion or archival behavior.",
+      "Complete end-to-end data lineage from source systems through to the REST API and nightly analytics export, beyond dbt's partial documentation.",
+      "Specify ownership for the nightly reconciliation job to complement its defined nightly frequency.",
+      "Define and document an SLA/SLO (uptime and latency targets) with a named owner before go-live.",
+      "Author an incident runbook covering common failure modes and escalation paths for the new API.",
+      "Document load limits and graceful-degradation behavior alongside the existing autoscaling configuration."
+    ],
+    "executive_summary": "The design is partially compliant across all three domains (overall score 52/100), with no cross-domain conflicts detected. The most serious gaps are security secrets handling (database credentials in config files with manual rotation), undocumented PII classification and missing data-retention policies, and the absence of a defined SLA/SLO and incident runbook for the new API. Strong foundations exist \u2014 OAuth2/SSO authentication, TLS in transit, a clear streaming/batch data platform, and autoscaling \u2014 but these governance gaps should be closed before go-live."
+  },
+  "source_file": "source.md",
+  "content_hash": "e8b6e1c02290"
+}

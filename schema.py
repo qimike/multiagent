@@ -15,8 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-# The governance domains (kept in sync with parser.DOMAINS).
-DOMAINS = ("data_movement", "security", "resilience")
+from domains import DOMAINS  # single source of truth
 
 ACTIVE_GUIDELINE_VERSION = "v1"
 
@@ -35,6 +34,7 @@ _EVIDENCE_EXAMPLE: dict[str, Any] = {
     "guideline_domain": "security",
     "guideline_version": "v1",
     "source_hash": "abc123...",
+    "evidence_confidence": 0.98,
 }
 
 EVALUATOR_RESULT_EXAMPLE: dict[str, Any] = {
@@ -73,6 +73,8 @@ class EvidenceItem(BaseModel):
     guideline_domain: str
     guideline_version: str
     source_hash: str
+    # Per-evidence confidence — how strongly this quote supports the finding.
+    evidence_confidence: float | None = None
 
 
 class EvaluatorResult(BaseModel):

@@ -1,3 +1,4 @@
+```mermaid
 flowchart TD
     SAD["source.md  (SAD Markdown)"]
 
@@ -47,3 +48,4 @@ flowchart TD
     RES --> SYN
     SYN --> WRITE["write results/&lt;doc&gt;.json<br/>{source_file, source_hash, guideline_version,<br/>evaluation_result, confidence, evaluations[], evidence[]}"]
     WRITE --> OUT
+```

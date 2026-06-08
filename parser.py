@@ -11,15 +11,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-# The governance domains a section can be routed to.
-DOMAINS = ("data_movement", "security", "resilience")
+from domains import DOMAIN_CONFIG, DOMAINS  # single source of truth
 
-# Deterministic heading -> domain rules. Matched case-insensitively against the
-# section heading. First matching rule wins; unmatched sections are context-only.
+# Deterministic heading -> domain rules, generated from DOMAIN_CONFIG. Matched
+# case-insensitively against the section heading; first matching rule wins; unmatched
+# sections are context-only (domain=None).
 _HEADING_RULES: list[tuple[str, str]] = [
-    (r"data\s*flow|data\s*movement|pipeline|ingest|etl|integration", "data_movement"),
-    (r"security|auth|access|encryption|secret", "security"),
-    (r"resilien|availab|reliab|operations|disaster|failover|sla", "resilience"),
+    (cfg["routing"], key) for key, cfg in DOMAIN_CONFIG.items()
 ]
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*\S)\s*$")

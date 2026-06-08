@@ -39,6 +39,7 @@ governance-review = "main_orchestrator:run"
 py-modules = [
     "main_orchestrator",
     "agents",
+    "domains",
     "parser",
     "schema",
     "tools",

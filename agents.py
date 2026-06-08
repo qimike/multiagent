@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from claude_agent_sdk import AgentDefinition
 
+from domains import DOMAIN_CONFIG
 from schema import EVALUATOR_RESULT_EXAMPLE, FINAL_OUTPUT_EXAMPLE
 from tools import TOOL_NAMES
 
@@ -39,10 +40,9 @@ class Evaluator:
     model: str
 
 
+# Derived from the single source of truth in domains.py.
 EVALUATORS: list[Evaluator] = [
-    Evaluator("Data Movement", "data_movement", "opus"),
-    Evaluator("Security", "security", "opus"),
-    Evaluator("Resilience", "resilience", "opus"),
+    Evaluator(cfg["name"], key, cfg["model"]) for key, cfg in DOMAIN_CONFIG.items()
 ]
 
 
@@ -65,19 +65,29 @@ reassign or discover sections). Steps:
    - evidence = EXACT, verbatim quotations from the SAD (never paraphrase, never
      fabricate; if a control is absent, say so in the finding rather than inventing a quote).
 4. Every evidence item MUST carry full provenance: section, line_range, guideline_domain
-   ("{ev.key}"), guideline_version, and source_hash (the source_hash you were given).
+   ("{ev.key}"), guideline_version, source_hash (the source_hash you were given), and an
+   evidence_confidence (0.0-1.0) for how strongly that quote supports the finding.
 5. Return ONE JSON object in this exact shape:
 {_RESULT_SHAPE}"""
 
 
 def build_synthesis_prompt() -> str:
-    return f"""You are the Synthesis Agent. You receive the per-domain evaluator JSON
-results (Data Movement, Security, Resilience), plus the source_file, source_hash, and
-guideline_version. You do NOT re-evaluate the SAD.
+    return f"""You are the Synthesis Agent — an AGGREGATOR, not a second evaluator. You
+receive the per-domain evaluator JSON results (Data Movement, Security, Resilience), plus
+the source_file, source_hash, and guideline_version. You do NOT re-evaluate the SAD.
+
+Preserve evaluator outputs verbatim:
+- Do NOT rewrite evaluator findings.
+- Do NOT reinterpret evaluator reasoning.
+- Do NOT change evaluator severity.
+- Do NOT change evaluator status.
+- Only aggregate and consolidate duplicated findings/evidence.
+(e.g. if the Security evaluator returned status=NON_CONFORM, severity=HIGH, you must NOT
+downgrade it.)
 
 Do all of the following:
 - Collect the evaluator outputs verbatim into "evaluations" (keep each domain's finding,
-  reasoning, status, severity, evidence, and confidence).
+  reasoning, status, severity, evidence, and confidence exactly as returned).
 - Merge the findings/reasoning across domains and consolidate all evidence into the
   top-level "evidence" array. Each evidence item is an exact quote that MUST keep its full
   provenance: {{"quote", "section", "line_range", "guideline_domain", "guideline_version",

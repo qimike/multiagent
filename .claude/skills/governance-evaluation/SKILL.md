@@ -53,12 +53,16 @@ Return ONE JSON object and NOTHING else (no markdown fences):
       "line_range": "29-30",
       "guideline_domain": "<your domain>",
       "guideline_version": "<version>",
-      "source_hash": "<the source_hash you were given>"
+      "source_hash": "<the source_hash you were given>",
+      "evidence_confidence": 0.98
     }
   ],
   "confidence": 0.95
 }
 ```
+
+- `evidence_confidence` (0.0–1.0): how strongly THIS quote supports the finding — useful
+  when a finding cites multiple evidence items of differing strength.
 
 - `status`: CONFORM (all met), PARTIAL (some gaps), NON_CONFORM (major requirements unmet).
 - `severity`: the highest severity among the gaps (LOW/MEDIUM/HIGH); use LOW when CONFORM.

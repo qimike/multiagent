@@ -74,8 +74,10 @@ verbatim** substring of the SAD (never paraphrased). Each evaluator keeps **find
 **evidence** (the exact quotes) distinct. `find_evidence` is only an optional helper.
 
 Every evidence item carries full **provenance** for auditability/reproducibility:
-`section`, `line_range`, `guideline_domain`, `guideline_version`, `source_hash`. Synthesis
-preserves these fields, and Python backfills them after the run so they are never lost.
+`section`, `line_range`, `guideline_domain`, `guideline_version`, `source_hash`, plus an
+`evidence_confidence` (how strongly that quote supports the finding). Synthesis preserves
+these fields verbatim (it aggregates, it does not re-evaluate), and Python backfills the
+provenance after the run so it is never lost.
 
 ## Validation
 
@@ -97,7 +99,8 @@ bad enum values) fails loudly with a non-zero exit instead of shipping silently.
       "status": "PARTIAL", "severity": "HIGH",
       "finding": "…", "reasoning": "…", "confidence": 0.9,
       "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30",
-                      "guideline_domain": "security", "guideline_version": "v1", "source_hash": "…" } ] }
+                      "guideline_domain": "security", "guideline_version": "v1", "source_hash": "…",
+                      "evidence_confidence": 0.98 } ] }
   ],
   "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30",
                   "guideline_domain": "security", "guideline_version": "v1", "source_hash": "…" } ]
@@ -114,14 +117,23 @@ bad enum values) fails loudly with a non-zero exit instead of shipping silently.
     governance-review documents/source.md --force    # ignore the cache
     # or: python main_orchestrator.py documents/source.md [--force]
 
+## Adding / configuring domains
+
+`domains.py` is the **single source of truth** (`DOMAIN_CONFIG`): each domain's display
+name, evaluator model, and heading-routing regex live there, and `parser.py`,
+`agents.py`, and `schema.py` all derive from it. To add a domain (API, Cost, Cloud, …),
+add an entry to `DOMAIN_CONFIG` plus `guidelines/<domain>/<version>/` — no other code
+changes.
+
 ## Project layout
 
     documents/*.md                          # SAD(s) under review
     guidelines/<domain>/<version>/          # guideline.md + examples.md (governance content)
     .claude/skills/governance-evaluation/   # behavior-only skill
-    parser.py                               # deterministic section parser + ownership
-    tools.py                                # shared MCP server: get_guideline, find_evidence (BM25)
+    domains.py                              # DOMAIN_CONFIG — single source of truth (routing/name/model)
+    parser.py                               # deterministic section parser + ownership (routing from domains.py)
+    tools.py                                # shared MCP server: get_guideline, find_evidence (optional locator)
     agents.py                               # sub-agent AgentDefinitions + orchestrator prompt
-    schema.py                               # evaluator + final output shapes
+    schema.py                               # output shapes + Pydantic validation
     main_orchestrator.py                    # hashing, caching, parsing, launches the native orchestrator
     results/<doc>.json                      # final assessment (cache + audit record)

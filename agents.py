@@ -1,12 +1,15 @@
-"""Evaluator + synthesis agent definitions and the orchestrator prompt for the
-SAD governance-evaluation framework.
+"""Claude native sub-agent definitions + the orchestrator prompt.
 
-The flow is model-driven: a single parent query() is given these AgentDefinitions
-plus the Agent tool, and the model parses the SAD, routes sections, dispatches to the
-domain evaluators, collects their results, and delegates the merge to the synthesis
-agent. The orchestrator never evaluates the SAD itself.
+Claude SDK AgentDefinitions are the primary execution model: a single parent query()
+is given these sub-agents plus the Agent tool. The orchestrator delegates evaluation to
+the domain sub-agents and the synthesis agent — it performs no evaluation itself.
 
-Each evaluator has exactly two tools (get_guideline, find_evidence) from tools.py.
+Section ownership is decided deterministically by parser.py and passed into the
+orchestrator prompt; the sub-agents only evaluate the sections assigned to them.
+
+Governance content is NOT in skills — the shared `governance-evaluation` skill holds
+evaluation behavior/format only, and the sub-agents load the versioned guideline at
+runtime via the get_guideline tool.
 """
 
 from __future__ import annotations
@@ -16,15 +19,24 @@ from dataclasses import dataclass
 
 from claude_agent_sdk import AgentDefinition
 
-from schema import EVALUATOR_RESULT_EXAMPLE, FINAL_ASSESSMENT_EXAMPLE
+from schema import EVALUATOR_RESULT_EXAMPLE, FINAL_OUTPUT_EXAMPLE
 from tools import TOOL_NAMES
+
+SHARED_SKILL = "governance-evaluation"
+SYNTHESIS_MODEL = "opus"
+
+# Sub-agents get the shared MCP tools, Read, and the Skill tool (to load the behavior skill).
+EVALUATOR_TOOLS = ["Read", "Skill", *TOOL_NAMES]
+
+_RESULT_SHAPE = json.dumps(EVALUATOR_RESULT_EXAMPLE, indent=2)
+_FINAL_SHAPE = json.dumps(FINAL_OUTPUT_EXAMPLE, indent=2)
 
 
 @dataclass
 class Evaluator:
     name: str    # display name, e.g. "Data Movement"
-    key: str     # guideline folder / get_guideline() argument, e.g. "data_movement"
-    model: str   # per-evaluator model override
+    key: str     # domain key / get_guideline argument, e.g. "data_movement"
+    model: str
 
 
 EVALUATORS: list[Evaluator] = [
@@ -33,75 +45,49 @@ EVALUATORS: list[Evaluator] = [
     Evaluator("Resilience", "resilience", "opus"),
 ]
 
-SYNTHESIS_MODEL = "opus"
-
-# Evaluators get exactly the two governance tools (+ Read for their own use).
-EVALUATOR_TOOLS = ["Read", *TOOL_NAMES]
-
-_RESULT_SHAPE = json.dumps(EVALUATOR_RESULT_EXAMPLE, indent=2)
-_FINAL_SHAPE = json.dumps(FINAL_ASSESSMENT_EXAMPLE, indent=2)
-
-# Hints to help the orchestrator decide which SAD sections are relevant to each domain.
-_RELEVANCE = {
-    "Data Movement": "data flow, pipelines, ingestion/export, storage, lineage, retention, PII movement",
-    "Security": "authentication, authorization, encryption, secrets, network, access control",
-    "Resilience": "availability/SLAs, redundancy/failover, disaster recovery, monitoring, scaling, degradation",
-}
-
 
 def build_evaluator_prompt(ev: Evaluator) -> str:
-    return f"""You are the {ev.name} Evaluator in a Solution Architecture Document (SAD)
-governance review. Evaluate ONLY {ev.name} concerns ({_RELEVANCE[ev.name]}).
+    return f"""You are the {ev.name} Evaluator (domain key: "{ev.key}").
 
-You are given the FULL SAD document AND the section(s) most relevant to {ev.name}. Use
-the full document for context and the target section(s) as your focus. Do not comment on
-other domains.
+Load and follow the "{SHARED_SKILL}" skill — it defines your procedure, reasoning, and
+the exact JSON output format. Evaluate ONLY the "{ev.key}" domain.
 
-Your only tools:
-- get_guideline("{ev.key}") — call this FIRST. It returns your {ev.name} guideline AND
-  examples. You MUST use BOTH when judging conformance.
-- find_evidence(markdown_document, query) — pass the full SAD and a search term to locate
-  exact supporting text and its location. Back every finding with evidence from this tool.
-
-Return ONE JSON object and NOTHING else (no markdown fences), in this exact shape:
-{_RESULT_SHAPE}
-
-Field rules:
-- "domain": exactly "{ev.name}".
-- "score": integer 0-100 for how well the SAD meets the {ev.name} guideline.
-- "rationale": brief justification for the score.
-- "evidence": concrete quotes pulled via find_evidence, each with its section and location.
-- "findings": gaps vs the guideline, each with "issue", "severity" (HIGH/MEDIUM/LOW), and
-  "recommendation"."""
+You will be given: the active guideline version, the source_hash, the full SAD, and the
+specific section(s) assigned to you (ownership was decided deterministically — do not
+reassign or discover sections). Steps:
+1. Call get_guideline("{ev.key}", <version>) and use BOTH the guideline and examples.
+2. Call find_evidence(<full SAD>, <query>) to back findings with evidence + provenance.
+3. Return ONE JSON object in this shape (every evidence item carries source_hash):
+{_RESULT_SHAPE}"""
 
 
 def build_synthesis_prompt() -> str:
-    return f"""You are the Synthesis layer of a SAD governance review. You receive the JSON
-results from the Data Movement, Security, and Resilience evaluators. You NEVER re-evaluate
-the SAD yourself — you only merge what the evaluators produced.
+    return f"""You are the Synthesis Agent. You receive the per-domain evaluator JSON
+results (Data Movement, Security, Resilience), plus the source_file, source_hash, and
+guideline_version. You do NOT re-evaluate the SAD.
 
 Do all of the following:
-- Merge the evaluator results into "evaluations".
-- Remove duplicate findings that say the same thing across evaluators.
-- Decide an "overall_status" (e.g., COMPLIANT / PARTIALLY_COMPLIANT / NON_COMPLIANT) from the
-  evaluator scores and findings.
-- Produce an evidence-linkage table in "evidence": each supporting quote with its location and
-  which evaluation/finding it supports.
+- Collect the evaluator outputs into "evaluations".
+- Merge/de-duplicate findings that repeat across domains.
+- Compute an overall "evaluation_result" and overall "confidence" from the per-domain results.
+- Consolidate all evidence into the top-level "evidence" array, preserving each item's
+  provenance (section, line_range, guideline_domain, guideline_version, source_hash).
 
-Return ONE JSON object and NOTHING else (no markdown fences). It MUST have EXACTLY these three
-top-level keys and no others: "overall_status", "evaluations", "evidence". Do not add summary,
-notes, or any extra top-level fields. Shape:
+Return ONE JSON object and NOTHING else (no markdown fences), with EXACTLY these top-level
+keys: source_file, source_hash, guideline_version, evaluation_result, confidence,
+evaluations, evidence. Shape:
 {_FINAL_SHAPE}"""
 
 
 def build_agents() -> dict[str, AgentDefinition]:
-    """All subagents the orchestrator can delegate to: the three evaluators + synthesis."""
+    """The sub-agents the orchestrator can delegate to: 3 evaluators + synthesis."""
     defs: dict[str, AgentDefinition] = {}
     for ev in EVALUATORS:
         defs[f"{ev.key}-evaluator"] = AgentDefinition(
-            description=f"Evaluates the SAD for {ev.name} governance conformance.",
+            description=f"Evaluates the SAD's assigned {ev.name} sections for conformance.",
             prompt=build_evaluator_prompt(ev),
             tools=EVALUATOR_TOOLS,
+            skills=[SHARED_SKILL],
             model=ev.model,
         )
     defs["synthesis"] = AgentDefinition(
@@ -113,28 +99,44 @@ def build_agents() -> dict[str, AgentDefinition]:
     return defs
 
 
-def build_orchestrator_prompt(doc_rel: str, out_rel: str) -> str:
-    roster = "\n".join(
-        f"   - {ev.name}: relevant to {_RELEVANCE[ev.name]} "
-        f"(subagent: {ev.key}-evaluator)"
-        for ev in EVALUATORS
-    )
-    return f"""You orchestrate a Solution Architecture Document (SAD) governance review.
-You do NOT evaluate the SAD yourself — you only parse, route, dispatch, collect, and
-trigger synthesis.
+def build_orchestrator_prompt(
+    doc_rel: str,
+    out_rel: str,
+    source_hash: str,
+    version: str,
+    assignments: dict[str, list[str]],
+) -> str:
+    """assignments: {domain_key: ["Heading (lines a-b)", ...]} from the deterministic parser."""
+    lines = []
+    for ev in EVALUATORS:
+        owned = assignments.get(ev.key) or []
+        owned_txt = "; ".join(owned) if owned else "(no sections assigned — skip this evaluator)"
+        lines.append(f"   - {ev.name} ({ev.key}-evaluator): {owned_txt}")
+    roster = "\n".join(lines)
+
+    return f"""You orchestrate a Solution Architecture Document (SAD) governance review using
+native sub-agents. You do NOT evaluate the SAD yourself, and you do NOT decide section
+ownership — ownership was already computed deterministically and is given below.
+
+Context:
+- SAD file: {doc_rel}
+- source_hash: {source_hash}
+- guideline_version: {version}
+
+Deterministic section ownership (each section belongs to exactly one domain):
+{roster}
 
 Steps:
-1. Read the SAD at {doc_rel}.
-2. Split it into logical sections by '##' headings (section parsing).
-3. Decide which sections are relevant to each domain:
-{roster}
-4. For EACH domain, delegate to its evaluator subagent via the Agent tool. Pass BOTH the
-   FULL SAD text AND the relevant section(s) in your message to the subagent — passing both
-   is required so the evaluator keeps document-level context. The evaluators must NOT talk to
-   each other. Each returns a JSON result.
-5. Collect all three evaluator JSON results.
-6. Delegate to the "synthesis" subagent, passing the three results, to produce the final
-   governance assessment JSON.
-7. Write the synthesis output verbatim to {out_rel} using the Write tool.
+1. Read the SAD at {doc_rel} (for the section text to pass along).
+2. For EACH domain that has assigned sections, delegate to its evaluator sub-agent via the
+   Agent tool. In your message to the sub-agent include: its guideline_version ({version}),
+   the source_hash ({source_hash}), the FULL SAD text, and the text of ITS assigned
+   section(s) only. Sub-agents must NOT talk to each other. Skip any evaluator with no
+   assigned sections.
+3. Collect the evaluator JSON results.
+4. Delegate to the "synthesis" sub-agent, passing the evaluator results plus source_file
+   ("{doc_rel.split('/')[-1]}"), source_hash ({source_hash}), and guideline_version
+   ({version}), to produce the final assessment.
+5. Write the synthesis output verbatim to {out_rel} using the Write tool.
 
-Do not load guidelines yourself — the evaluators do that via their get_guideline tool."""
+Do not load guidelines yourself — the evaluators do that via get_guideline."""

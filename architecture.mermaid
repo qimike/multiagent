@@ -1,43 +1,48 @@
 flowchart TD
-    SAD["SAD Markdown  (documents/*.md)"]
+    SAD["source.md  (SAD Markdown)"]
 
-    subgraph PARENT["Single parent query()  +  Agent tool  (model-driven)"]
-        ORCH["Orchestrator agent<br/>parse sections -> route -> dispatch -> collect -> trigger synthesis<br/>(does NOT evaluate)"]
+    subgraph DET["Deterministic pre-processing (Python)"]
+        HASH["SHA256 -> source_hash"]
+        CACHE{"cache hit?<br/>key = source_hash + guideline_version"}
+        PARSE["parser.py: split sections +<br/>assign ownership (routing map)"]
     end
 
-    SAD --> ORCH
+    SAD --> HASH --> CACHE
+    CACHE -- "hit" --> OUT["results/&lt;doc&gt;.json (returned)"]
+    CACHE -- "miss / --force" --> PARSE
 
-    ORCH -- "Agent tool: full SAD + relevant section(s)" --> DM
-    ORCH -- "Agent tool: full SAD + relevant section(s)" --> SEC
-    ORCH -- "Agent tool: full SAD + relevant section(s)" --> RES
+    PARSE -- "per-domain section assignments" --> ORCH
 
-    subgraph EVAL["Domain evaluators (subagents, isolated)"]
-        DM["Data Movement Evaluator"]
-        SEC["Security Evaluator"]
-        RES["Resilience Evaluator"]
+    subgraph NATIVE["Claude native execution (single parent query() + Agent tool)"]
+        ORCH["Orchestrator agent<br/>delegate assigned sections (does NOT evaluate / own sections)"]
+        DM["Data Movement sub-agent"]
+        SEC["Security sub-agent"]
+        RES["Resilience sub-agent"]
+        SYN["Synthesis sub-agent<br/>merge + dedupe + consolidate evidence"]
     end
 
-    subgraph TOOLS["The only two tools (governance MCP server)"]
-        T1["get_guideline(domain)<br/>-> guideline.md + examples.md"]
-        T2["find_evidence(markdown, query)<br/>-> section + line + evidence"]
+    ORCH -- "Agent tool: full SAD + assigned section(s) + source_hash + version" --> DM
+    ORCH -- "Agent tool" --> SEC
+    ORCH -- "Agent tool" --> RES
+
+    subgraph SKILL["Skill (behavior only)"]
+        SK["governance-evaluation<br/>reasoning + output format (NO governance content)"]
     end
+    DM & SEC & RES -. load .-> SK
 
-    DM -. uses .-> T1 & T2
-    SEC -. uses .-> T1 & T2
-    RES -. uses .-> T1 & T2
+    subgraph MCP["One shared MCP server: governance"]
+        T1["get_guideline(domain, version)"]
+        T2["find_evidence(markdown, query) — BM25"]
+    end
+    DM & SEC & RES -. call .-> T1 & T2
 
-    subgraph GUIDE["guidelines/&lt;domain&gt;/"]
-        G1["data_movement/ guideline.md + examples.md"]
-        G2["security/ guideline.md + examples.md"]
-        G3["resilience/ guideline.md + examples.md"]
+    subgraph GUIDE["guidelines/&lt;domain&gt;/&lt;version&gt;/"]
+        G["guideline.md + examples.md  (v1, v2, …)"]
     end
     T1 -. reads .-> GUIDE
 
-    DM --> COLLECT
-    SEC --> COLLECT
-    RES --> COLLECT
-    COLLECT["evaluator results<br/>{score, rationale, evidence, findings}"] --> SYN
-
-    SYN["Synthesis subagent<br/>merge + de-dupe findings + evidence linkage"] --> OUT
-
-    OUT["results/&lt;doc&gt;.json<br/>{ overall_status, evaluations[], evidence[] }"]
+    DM --> SYN
+    SEC --> SYN
+    RES --> SYN
+    SYN --> WRITE["write results/&lt;doc&gt;.json<br/>{source_file, source_hash, guideline_version,<br/>evaluation_result, confidence, evaluations[], evidence[]}"]
+    WRITE --> OUT

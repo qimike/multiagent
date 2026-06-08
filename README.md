@@ -1,112 +1,115 @@
-# SAD Governance Evaluation (Claude Agent SDK)
+# SAD Governance Evaluation — Claude Native Sub-Agents
 
-A model-driven framework that evaluates a **Solution Architecture Document (SAD)**
-written in Markdown against governance guidelines, and produces an evidence-backed
-governance assessment. Built on the **Claude Agent SDK**.
+Evaluates a **Solution Architecture Document (SAD)** in Markdown against versioned
+governance guidelines and produces an evidence-backed, auditable assessment. The
+execution model is **Claude SDK native sub-agents**; deterministic work (hashing,
+caching, parsing, section ownership) stays in Python.
 
-## How it works (model-driven)
-
-A **single parent `query()`** is given three domain evaluators and a synthesis agent
-as `AgentDefinition`s, plus the `Agent` tool. The **model** owns the workflow:
-
-1. **Parse** the SAD into sections (by `##` headings).
-2. **Route** each section to the relevant domain(s).
-3. **Dispatch** to each evaluator subagent via the `Agent` tool, passing **both** the
-   full SAD and the relevant section(s).
-4. **Collect** the evaluators' results.
-5. **Synthesize** — a synthesis subagent merges them, de-duplicates findings, and
-   builds an evidence-linkage table.
-
-The orchestrator **never evaluates the SAD itself** — it only parses, routes,
-dispatches, collects, and triggers synthesis. There is no deterministic Python control
-flow driving the evaluation; the agent does it.
+## Pipeline
 
 ```text
-SAD Markdown
-      ↓  parse sections → route → dispatch (Agent tool)
-Data Movement Evaluator · Security Evaluator · Resilience Evaluator
-      ↓  (each: get_guideline + find_evidence — the only two tools)
-Evaluator results
-      ↓
-Synthesis  →  results/<doc>.json
-              { "overall_status": ..., "evaluations": [...], "evidence": [...] }
+source.md
+  → SHA256 (source_hash)
+  → cache check            (key = source_hash + guideline_version)
+  → deterministic parser   (parser.py decides section ownership — agents never do)
+  → Claude native orchestrator query()  (delegates via the Agent tool)
+       → Data Movement / Security / Resilience sub-agents
+       → Synthesis sub-agent
+  → results/<doc>.json
 ```
 
-## Domains
+Python is a thin deterministic pre-processor; the **orchestrator agent** does the
+routing-to-sub-agents and the sub-agents do the evaluation. The orchestrator never
+evaluates the SAD itself.
 
-| Evaluator | Looks at |
-|-----------|----------|
-| **Data Movement** | data flow, pipelines, ingestion/export, storage, lineage, retention, PII movement |
-| **Security** | authentication, authorization, encryption, secrets, network, access control |
-| **Resilience** | availability/SLAs, redundancy/failover, disaster recovery, monitoring, scaling, degradation |
+## Deterministic section ownership
 
-## Tools (exactly two)
+`parser.py` splits the SAD by Markdown headings and assigns **each section to exactly
+one domain** (or none, for context), producing a routing map like:
 
-Evaluators have only these tools:
+```json
+{ "Data Flow": "data_movement", "Security": "security", "Resilience": "resilience" }
+```
 
-- **`get_guideline(domain)`** — loads that domain's `guideline.md` **and** `examples.md`
-  (both are used when evaluating). `domain` ∈ `data_movement`, `security`, `resilience`.
-- **`find_evidence(markdown_document, query)`** — locates supporting text in the SAD and
-  returns each match's section, line, and evidence text.
+Sub-agents only evaluate the sections assigned to them — they do **not** discover
+sections or decide ownership.
 
-Both live in `tools.py` as one in-process MCP server (`governance`).
+## SHA256 + caching
 
-## Setup
+Every SAD is hashed (`source_hash`) and the hash is stored in the output. Before
+evaluating, the cache is checked with key **`source_hash` + `guideline_version`**:
+a matching result is returned without calling the model. Bumping a guideline version
+invalidates stale results.
+
+## Versioned guidelines (governance content)
+
+```text
+guidelines/<domain>/v1/guideline.md
+guidelines/<domain>/v1/examples.md
+```
+
+New versions (`v2`, `v3`, …) drop in as sibling folders — **no skill changes needed**.
+Domains: `data_movement`, `security`, `resilience`.
+
+## Skills (behavior only — no governance content)
+
+The shared `.claude/skills/governance-evaluation/SKILL.md` holds **evaluation behavior,
+reasoning strategy, and output format** only. Governance rules are **not** in the skill;
+each sub-agent loads them at runtime via `get_guideline(domain, version)`.
+
+## Tools — one shared MCP server (`governance`)
+
+| Tool | Purpose |
+|------|---------|
+| `get_guideline(domain, version)` | Load the versioned guideline **and** examples |
+| `find_evidence(markdown_document, query)` | **BM25** evidence retrieval over SAD sections → `evidence_text`, `section`, `line_range`, `confidence` |
+
+A single in-process MCP server is shared by all agents (no per-domain server).
+
+## Evidence provenance
+
+Every evidence item carries: `section`, `line_range`, `guideline_domain`,
+`guideline_version`, `source_hash` (plus `evidence_text`, `confidence`) — for
+auditability.
+
+## Output schema (`results/<doc>.json`)
+
+```json
+{
+  "source_file": "source.md",
+  "source_hash": "…",
+  "guideline_version": "v1",
+  "evaluation_result": "NON_COMPLIANT",
+  "confidence": 0.9,
+  "evaluations": [
+    { "guideline_domain": "security", "guideline_version": "v1",
+      "evaluation_result": "PARTIALLY_COMPLIANT", "confidence": 0.9,
+      "rationale": "…", "findings": [ … ], "evidence": [ … ] }
+  ],
+  "evidence": [ { "evidence_text": "…", "section": "…", "line_range": "29-30",
+                  "guideline_domain": "security", "guideline_version": "v1",
+                  "source_hash": "…", "confidence": 0.92 } ]
+}
+```
+
+## Setup & run
 
     pip install -e .
     export ANTHROPIC_API_KEY=sk-ant-...
 
-## Run
-
     governance-review                       # evaluate every documents/*.md
-    governance-review documents/source.md   # evaluate one SAD
-    # equivalently, without installing:
-    python main_orchestrator.py [documents/source.md]
-
-The final assessment is written to `results/<doc-stem>.json`.
-
-## Guidelines & examples
-
-Each domain owns its guidance; **both** files are loaded by the evaluator:
-
-    guidelines/
-        data_movement/  guideline.md  examples.md
-        security/       guideline.md  examples.md
-        resilience/     guideline.md  examples.md
-
-`examples.md` is a first-class input — treated as part of the evaluator's knowledge.
-
-## Output shape
-
-```json
-{
-  "overall_status": "...",
-  "evaluations": [
-    { "domain": "Security", "score": 70, "rationale": "...", "findings": [ ... ] }
-  ],
-  "evidence": [
-    { "quote": "...", "location": "Security, line 12", "supports": "..." }
-  ]
-}
-```
-
-Each evaluator returns `{ domain, score, rationale, evidence, findings }`; synthesis
-merges these into the assessment above.
+    governance-review documents/source.md   # one SAD
+    governance-review --force documents/source.md   # ignore the cache
+    # or: python main_orchestrator.py [--force] [documents/source.md]
 
 ## Project layout
 
-    documents/*.md                         # the SAD(s) under review (source.md included)
-    guidelines/<domain>/guideline.md        # per-domain governance guideline
-    guidelines/<domain>/examples.md         # per-domain examples (first-class input)
-    tools.py                                # the two tools (get_guideline, find_evidence)
-    agents.py                               # evaluator + synthesis AgentDefinitions, orchestrator prompt
-    schema.py                               # evaluator result + final assessment shapes
-    main_orchestrator.py                    # the single model-driven orchestrator (entry point)
-    results/<doc>.json                      # generated governance assessment
-
-## Scope
-
-Governance evaluation only — no database persistence, external policy systems,
-enterprise integrations, or generic compliance scanners. The previous generic
-compliance tools (PII detection, secret scanning, user/email lookup, mock policy DBs,
-external services) have been removed.
+    documents/*.md                          # SAD(s) under review
+    guidelines/<domain>/<version>/          # guideline.md + examples.md (governance content)
+    .claude/skills/governance-evaluation/   # behavior-only skill
+    parser.py                               # deterministic section parser + ownership
+    tools.py                                # shared MCP server: get_guideline, find_evidence (BM25)
+    agents.py                               # sub-agent AgentDefinitions + orchestrator prompt
+    schema.py                               # evaluator + final output shapes
+    main_orchestrator.py                    # hashing, caching, parsing, launches the native orchestrator
+    results/<doc>.json                      # final assessment (cache + audit record)

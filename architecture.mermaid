@@ -1,65 +1,43 @@
 flowchart TD
-    subgraph INPUT["documents/*.md  (## [Tag] headings)"]
-        DOC["source.md (and any other *.md)"]
+    SAD["SAD Markdown  (documents/*.md)"]
+
+    subgraph PARENT["Single parent query()  +  Agent tool  (model-driven)"]
+        ORCH["Orchestrator agent<br/>parse sections -> route -> dispatch -> collect -> trigger synthesis<br/>(does NOT evaluate)"]
     end
 
-    subgraph CACHE["Cache layer  (results/&lt;doc&gt;.json)"]
-        HASH["content_hash(text) = sha256[:12]"]
-        LOOKUP{"cache file exists<br/>and hash matches?<br/>(unless --force)"}
+    SAD --> ORCH
+
+    ORCH -- "Agent tool: full SAD + relevant section(s)" --> DM
+    ORCH -- "Agent tool: full SAD + relevant section(s)" --> SEC
+    ORCH -- "Agent tool: full SAD + relevant section(s)" --> RES
+
+    subgraph EVAL["Domain evaluators (subagents, isolated)"]
+        DM["Data Movement Evaluator"]
+        SEC["Security Evaluator"]
+        RES["Resilience Evaluator"]
     end
 
-    DOC --> HASH --> LOOKUP
-    LOOKUP -- "cache hit -> skip testing" --> REPORT["results/&lt;doc&gt;.json<br/>(returned as-is, no model calls)"]
-    LOOKUP -- "miss / changed / --force" --> ORCH
-
-    subgraph ORCH["Orchestrator (plain Python, deterministic)"]
-        SPLIT["split into ## sections"]
-        ROUTE["route by [Tag] — ONE section -> ONE agent<br/>no overlap; untagged/unknown -> DEFAULT_OWNER (Resilient) + warning"]
-        SPLIT --> ROUTE
+    subgraph TOOLS["The only two tools (governance MCP server)"]
+        T1["get_guideline(domain)<br/>-> guideline.md + examples.md"]
+        T2["find_evidence(markdown, query)<br/>-> section + line + evidence"]
     end
 
-    ROUTE -- "[Security] sections" --> SEC
-    ROUTE -- "[Data] sections" --> DAT
-    ROUTE -- "[Resilient] sections + fallbacks" --> RES
-    ROUTE -. "agent with no sections -> skipped (NOT_APPLICABLE placeholder)" .-> SKIP["(skipped, not called)"]
+    DM -. uses .-> T1 & T2
+    SEC -. uses .-> T1 & T2
+    RES -. uses .-> T1 & T2
 
-    subgraph AGENTS["Domain agents — isolated query() calls, run in parallel"]
-        SEC["Security agent"]
-        DAT["Data agent"]
-        RES["Resilient agent"]
+    subgraph GUIDE["guidelines/&lt;domain&gt;/"]
+        G1["data_movement/ guideline.md + examples.md"]
+        G2["security/ guideline.md + examples.md"]
+        G3["resilience/ guideline.md + examples.md"]
     end
+    T1 -. reads .-> GUIDE
 
-    subgraph SKILLS["Skills (.claude/skills, via setting_sources=project)"]
-        SK0["conformance-common (shared)"]
-        SK1["security-review"]
-        SK2["data-review"]
-        SK3["resilient-review (TODO: resilience criteria)"]
-    end
+    DM --> COLLECT
+    SEC --> COLLECT
+    RES --> COLLECT
+    COLLECT["evaluator results<br/>{score, rationale, evidence, findings}"] --> SYN
 
-    subgraph TOOLS["Custom tools (MCP servers, mcp__server__tool)"]
-        TSH["shared: policy_version"]
-        TS1["security: check_secret_in_vault"]
-        TS2["data: check_pii_classification, check_record_exists"]
-        TS3["resilient: call_api (TODO: resilience probes)"]
-    end
+    SYN["Synthesis subagent<br/>merge + de-dupe findings + evidence linkage"] --> OUT
 
-    SK0 -.load.-> SEC & DAT & RES
-    SK1 -.load.-> SEC
-    SK2 -.load.-> DAT
-    SK3 -.load.-> RES
-    TSH -.call.-> SEC & DAT & RES
-    TS1 -.call.-> SEC
-    TS2 -.call.-> DAT
-    TS3 -.call.-> RES
-
-    SEC --> VAL
-    DAT --> VAL
-    RES --> VAL
-
-    subgraph MERGE["Orchestrator (deterministic)"]
-        VAL["validate_agent_output + detect_conflicts"]
-    end
-
-    VAL --> SYN["Synthesis agent — separate isolated query()"]
-    SYN --> WRITE["write results/&lt;doc&gt;.json<br/>(3 domain results + synthesis + source_file + content_hash)"]
-    WRITE --> REPORT
+    OUT["results/&lt;doc&gt;.json<br/>{ overall_status, evaluations[], evidence[] }"]

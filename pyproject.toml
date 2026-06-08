@@ -5,19 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "multiagent-governance"
 version = "0.1.0"
-description = "Multi-agent document-governance pipeline (Security / Data / Resilient) built on the Claude Agent SDK."
+description = "SAD governance-evaluation framework (Data Movement / Security / Resilience), model-driven on the Claude Agent SDK."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "multiAgent" }]
-keywords = ["claude", "agent-sdk", "governance", "multi-agent", "conformance"]
+keywords = ["claude", "agent-sdk", "governance", "multi-agent", "sad", "architecture-review"]
 
 # Runtime dependencies (this file is the single source of truth).
 dependencies = [
-    # AgentDefinition.skills (Python) requires claude-agent-sdk >= 0.1.49.
     "claude-agent-sdk>=0.1.49",
-    # Used by the Resilient-domain custom tool (agents/resilient/tools.py: call_api).
-    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
@@ -27,28 +24,24 @@ dev = [
 ]
 
 [project.scripts]
-# After `pip install -e .`:  governance-review   /   governance-review --force
+# After `pip install -e .`:  governance-review  [path/to/sad.md]
 governance-review = "main_orchestrator:run"
 
 [project.urls]
-Homepage = "https://github.com/JaneCS2025/multiAgent"
+Homepage = "https://github.com/qimike/multiagent"
 
 # ---------------------------------------------------------------------------
 # Packaging
 # ---------------------------------------------------------------------------
-# This repo has BOTH a module `agents.py` and a directory `agents/`, which breaks
-# setuptools' automatic package discovery. Declaring `py-modules` explicitly turns
-# auto-discovery off and installs just these top-level modules. The pipeline runs
-# from the source tree (it resolves agents/<domain>/tools.py and .claude/skills via
-# Path(__file__).parent at runtime), so an editable install (`pip install -e .`) is
-# the intended usage.
+# The project is a set of top-level modules (it reads guidelines/ and documents/ from
+# the source tree at runtime), so we list py-modules explicitly and run it as an
+# editable install (`pip install -e .`).
 [tool.setuptools]
 py-modules = [
     "main_orchestrator",
-    "orchestrator_native_subagents",
     "agents",
     "schema",
-    "shared_tools",
+    "tools",
 ]
 
 # ---------------------------------------------------------------------------

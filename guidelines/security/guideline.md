@@ -1,6 +1,6 @@
-# Security Conformance Guidelines
+# Security Governance Guideline
 
-These are the security requirements every solution design is assessed against.
+Evaluate the SAD's security posture against these requirements.
 
 ## Authentication
 - All externally exposed APIs MUST use an approved authentication method
@@ -19,8 +19,8 @@ These are the security requirements every solution design is assessed against.
 
 ## Secrets Management
 - Secrets (database credentials, API keys, tokens) MUST be stored in an approved
-  secrets vault (e.g., HashiCorp Vault, cloud KMS/Secrets Manager).
-- Secrets MUST NOT be stored in source code or plain configuration files.
+  secrets vault (e.g., HashiCorp Vault, cloud KMS/Secrets Manager), never in source
+  code or plain configuration files.
 - Automated rotation is required for high-value secrets.
 
 ## Network Security

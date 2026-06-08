@@ -62,15 +62,16 @@ each sub-agent loads them at runtime via `get_guideline(domain, version)`.
 | Tool | Purpose |
 |------|---------|
 | `get_guideline(domain, version)` | Load the versioned guideline **and** examples |
-| `find_evidence(markdown_document, query)` | **BM25** evidence retrieval over SAD sections → `evidence_text`, `section`, `line_range`, `confidence` |
+| `find_evidence(markdown_document, query)` | **Optional** BM25 helper to locate text/line numbers — evaluators are **not required** to call it |
 
 A single in-process MCP server is shared by all agents (no per-domain server).
 
-## Evidence provenance
+## Evidence model
 
-Every evidence item carries: `section`, `line_range`, `guideline_domain`,
-`guideline_version`, `source_hash` (plus `evidence_text`, `confidence`) — for
-auditability.
+Evidence is generated **directly during evaluation** and every `quote` is an **exact,
+verbatim** substring of the SAD (never paraphrased). Each evaluator keeps **finding**
+(the conclusion), **reasoning** (why the evidence satisfies/violates the guideline), and
+**evidence** (the exact quotes) distinct. `find_evidence` is only an optional helper.
 
 ## Output schema (`results/<doc>.json`)
 
@@ -79,16 +80,15 @@ auditability.
   "source_file": "source.md",
   "source_hash": "…",
   "guideline_version": "v1",
-  "evaluation_result": "NON_COMPLIANT",
+  "evaluation_result": "NON_CONFORM",
   "confidence": 0.9,
   "evaluations": [
     { "guideline_domain": "security", "guideline_version": "v1",
-      "evaluation_result": "PARTIALLY_COMPLIANT", "confidence": 0.9,
-      "rationale": "…", "findings": [ … ], "evidence": [ … ] }
+      "status": "PARTIAL", "severity": "HIGH",
+      "finding": "…", "reasoning": "…", "confidence": 0.9,
+      "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30" } ] }
   ],
-  "evidence": [ { "evidence_text": "…", "section": "…", "line_range": "29-30",
-                  "guideline_domain": "security", "guideline_version": "v1",
-                  "source_hash": "…", "confidence": 0.92 } ]
+  "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30" } ]
 }
 ```
 
@@ -97,10 +97,10 @@ auditability.
     pip install -e .
     export ANTHROPIC_API_KEY=sk-ant-...
 
-    governance-review                       # evaluate every documents/*.md
-    governance-review documents/source.md   # one SAD
-    governance-review --force documents/source.md   # ignore the cache
-    # or: python main_orchestrator.py [--force] [documents/source.md]
+    # The SAD document path is REQUIRED — exactly one document per run.
+    governance-review documents/source.md            # evaluate one SAD
+    governance-review --force documents/source.md    # ignore the cache
+    # or: python main_orchestrator.py documents/source.md [--force]
 
 ## Project layout
 

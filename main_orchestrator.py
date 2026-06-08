@@ -13,11 +13,13 @@ Pipeline:
 The deterministic parts (hashing, caching, parsing, section ownership) stay in Python.
 Agent routing/orchestration is done by the Claude native orchestrator, not Python.
 
-Run:
+Run (the SAD document path is REQUIRED — exactly one document per execution):
     export ANTHROPIC_API_KEY=sk-ant-...
-    python main_orchestrator.py                 # evaluate every documents/*.md
-    python main_orchestrator.py documents/x.md  # evaluate one SAD
-    python main_orchestrator.py --force ...      # ignore the cache
+    python main_orchestrator.py documents/sample.md
+    or
+    governance-review documents/sample.md
+    Optional:
+    governance-review documents/sample.md --force   # ignore the cache
 """
 
 from __future__ import annotations
@@ -37,7 +39,6 @@ from schema import ACTIVE_GUIDELINE_VERSION
 from tools import MCP_SERVER, SERVER_NAME, TOOL_NAMES
 
 ROOT = Path(__file__).parent
-DOCUMENTS_DIR = ROOT / "documents"
 RESULTS_DIR = ROOT / "results"
 
 
@@ -107,21 +108,14 @@ async def evaluate_sad(doc_path: Path, force: bool = False) -> dict | str:
         if getattr(message, "result", None):
             final = message.result
 
-    # 4) stamp the written result so the cache key + provenance are always reliable
-    #    (normalize top-level AND every nested evidence item's source_hash/version)
+    # 4) stamp the written result's top-level identity so the cache key is reliable
+    #    regardless of what the model emitted.
     if out_path.exists():
         try:
             data = json.loads(out_path.read_text(encoding="utf-8"))
             data["source_file"] = doc_path.name
             data["source_hash"] = source_hash
             data["guideline_version"] = version
-            for ev_list in [data.get("evidence", [])] + [
-                e.get("evidence", []) for e in data.get("evaluations", [])
-            ]:
-                for item in ev_list or []:
-                    if isinstance(item, dict):
-                        item["source_hash"] = source_hash
-                        item.setdefault("guideline_version", version)
             out_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except (json.JSONDecodeError, OSError):
             pass
@@ -133,22 +127,22 @@ async def main() -> None:
         description="SAD governance evaluation via Claude native sub-agents "
         "(Data Movement / Security / Resilience), with SHA256 + version-aware caching."
     )
-    ap.add_argument("document", nargs="?", help="One SAD Markdown file. Omit for all documents/*.md.")
+    ap.add_argument("document", help="Path to the SAD markdown document to evaluate.")
     ap.add_argument("--force", action="store_true", help="Ignore the cache and re-evaluate.")
     args = ap.parse_args()
 
-    docs = [Path(args.document).resolve()] if args.document else sorted(
-        p.resolve() for p in DOCUMENTS_DIR.glob("*.md")
-    )
-    if not docs or not all(d.exists() for d in docs):
-        sys.exit(f"No SAD document(s) found (looked in {DOCUMENTS_DIR} or the given path).")
+    # Exactly one SAD per execution; the path is required and must exist. The framework
+    # never automatically scans the documents/ directory.
+    docs = [Path(args.document).resolve()]
+    if not docs[0].exists():
+        sys.exit(f"SAD document not found: {docs[0]}")
 
-    for doc in docs:
-        print(f"\n=== Evaluating SAD: {doc.name} ===")
-        result = await evaluate_sad(doc, force=args.force)
-        if isinstance(result, str) and result:
-            print(result)
-        print(f"Final assessment at results/{doc.stem}.json")
+    doc = docs[0]
+    print(f"\n=== Evaluating SAD: {doc.name} ===")
+    result = await evaluate_sad(doc, force=args.force)
+    if isinstance(result, str) and result:
+        print(result)
+    print(f"Final assessment at results/{doc.stem}.json")
 
 
 def run() -> None:

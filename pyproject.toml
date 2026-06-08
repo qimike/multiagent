@@ -27,8 +27,6 @@ dev = [
 # After `pip install -e .`:  governance-review  [path/to/sad.md]
 governance-review = "main_orchestrator:run"
 
-[project.urls]
-Homepage = "https://github.com/qimike/multiagent"
 
 # ---------------------------------------------------------------------------
 # Packaging

@@ -21,7 +21,7 @@ flowchart TD
         SYN["Synthesis sub-agent<br/>merge + dedupe + consolidate evidence"]
     end
 
-    ORCH -- "Agent tool: full SAD + assigned section(s) + source_hash + version" --> DM
+    ORCH -- "Agent tool: full SAD + assigned section(s) + guideline_version" --> DM
     ORCH -- "Agent tool" --> SEC
     ORCH -- "Agent tool" --> RES
 
@@ -32,9 +32,10 @@ flowchart TD
 
     subgraph MCP["One shared MCP server: governance"]
         T1["get_guideline(domain, version)"]
-        T2["find_evidence(markdown, query) — BM25"]
+        T2["find_evidence(markdown, query) — BM25, OPTIONAL"]
     end
-    DM & SEC & RES -. call .-> T1 & T2
+    DM & SEC & RES -- "always" --> T1
+    DM & SEC & RES -. "optional" .-> T2
 
     subgraph GUIDE["guidelines/&lt;domain&gt;/&lt;version&gt;/"]
         G["guideline.md + examples.md  (v1, v2, …)"]

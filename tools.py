@@ -119,9 +119,11 @@ def _best_snippet(section_body: str, line_start: int, query: str) -> tuple[str, 
 
 @tool(
     "find_evidence",
-    "Find supporting evidence in a SAD via BM25 ranking over its sections. Pass the full "
-    "SAD Markdown as 'markdown_document' and a search query. Returns the top-ranked "
-    "matches, each with evidence_text, section, line_range, and a confidence score.",
+    "OPTIONAL helper: locate text in a SAD via BM25 ranking over its sections (e.g. to "
+    "confirm a line number). Evaluators are NOT required to call this — evidence is "
+    "normally quoted directly from the assigned section. Pass the full SAD Markdown as "
+    "'markdown_document' and a query; returns top matches with evidence_text, section, "
+    "line_range, and a confidence score.",
     {"markdown_document": str, "query": str},
 )
 async def find_evidence(args: dict) -> dict:

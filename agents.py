@@ -52,12 +52,19 @@ def build_evaluator_prompt(ev: Evaluator) -> str:
 Load and follow the "{SHARED_SKILL}" skill — it defines your procedure, reasoning, and
 the exact JSON output format. Evaluate ONLY the "{ev.key}" domain.
 
-You will be given: the active guideline version, the source_hash, the full SAD, and the
-specific section(s) assigned to you (ownership was decided deterministically — do not
-reassign or discover sections). Steps:
+You will be given: the active guideline version, the full SAD, and the specific
+section(s) assigned to you (ownership was decided deterministically — do not reassign or
+discover sections). Steps:
 1. Call get_guideline("{ev.key}", <version>) and use BOTH the guideline and examples.
-2. Call find_evidence(<full SAD>, <query>) to back findings with evidence + provenance.
-3. Return ONE JSON object in this shape (every evidence item carries source_hash):
+2. Evaluate your assigned section text against the guideline. Generate evidence DIRECTLY
+   from the section text you already have — find_evidence is an OPTIONAL helper, not
+   required.
+3. Keep finding, reasoning, and evidence distinct:
+   - finding = your conclusion for this domain;
+   - reasoning = why the evidence satisfies or violates the guideline;
+   - evidence = EXACT, verbatim quotations from the SAD (never paraphrase, never
+     fabricate; if a control is absent, say so in the finding rather than inventing a quote).
+4. Return ONE JSON object in this exact shape:
 {_RESULT_SHAPE}"""
 
 
@@ -67,11 +74,13 @@ results (Data Movement, Security, Resilience), plus the source_file, source_hash
 guideline_version. You do NOT re-evaluate the SAD.
 
 Do all of the following:
-- Collect the evaluator outputs into "evaluations".
-- Merge/de-duplicate findings that repeat across domains.
-- Compute an overall "evaluation_result" and overall "confidence" from the per-domain results.
-- Consolidate all evidence into the top-level "evidence" array, preserving each item's
-  provenance (section, line_range, guideline_domain, guideline_version, source_hash).
+- Collect the evaluator outputs verbatim into "evaluations" (keep each domain's finding,
+  reasoning, status, severity, evidence, and confidence).
+- Merge the findings/reasoning across domains and consolidate all evidence into the
+  top-level "evidence" array. Each evidence item is an exact quote with section and
+  line_range ({{"quote", "section", "line_range"}}). Do NOT paraphrase quotes.
+- Compute an overall "evaluation_result" (CONFORM | PARTIAL | NON_CONFORM) and overall
+  "confidence" from the per-domain results.
 
 Return ONE JSON object and NOTHING else (no markdown fences), with EXACTLY these top-level
 keys: source_file, source_hash, guideline_version, evaluation_result, confidence,

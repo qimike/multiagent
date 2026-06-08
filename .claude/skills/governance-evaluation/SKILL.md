@@ -1,6 +1,6 @@
 ---
 name: governance-evaluation
-description: How to evaluate one SAD governance domain — reasoning strategy, tool usage, and the strict JSON output format. Contains NO governance content; the domain rules are loaded at runtime via get_guideline.
+description: How to evaluate one SAD governance domain — reasoning strategy and the strict JSON output format. Contains NO governance content; the domain rules are loaded at runtime via get_guideline.
 ---
 
 # Governance Evaluation — Behavior
@@ -15,17 +15,23 @@ those at runtime.
 ## Procedure
 1. **Load governance content** — call `get_guideline(<your domain>, <version>)`. Use BOTH
    the guideline and its examples. The rules live in the guideline, never in this skill.
-2. **Focus** on your assigned section(s); use the rest of the SAD only for context.
-3. **Gather evidence** — for the points that matter, call
-   `find_evidence(<full SAD markdown>, <query>)` and use the returned
-   `evidence_text` / `section` / `line_range` / `confidence`.
-4. **Judge** conformance against each requirement and record findings for gaps.
+2. **Evaluate** your assigned section text against the guideline. You already have the
+   section text in context — evaluate and extract evidence directly from it.
+3. **(Optional)** `find_evidence(<full SAD>, <query>)` is available as a helper to locate
+   text or line numbers, but you are NOT required to call it.
 
-## Reasoning strategy
-- Prefer evidence from your assigned section(s). If a required control is simply absent,
-  that absence is itself a finding — do not fabricate evidence.
-- Tie every finding to a guideline requirement, and where possible to retrieved evidence.
-- Severity: HIGH (security / regulatory / data-loss / availability risk), MEDIUM, LOW.
+## Finding vs. reasoning vs. evidence (keep these distinct)
+- **finding** — your conclusion: what is or isn't satisfied for this domain.
+- **reasoning** — WHY the evidence satisfies or violates the guideline (tie the quote(s)
+  to the specific guideline requirement).
+- **evidence** — the raw support: EXACT quotations from the SAD.
+
+## Evidence rules (strict)
+- Every `quote` MUST be an **exact, verbatim** substring of the SAD source text.
+  **Never paraphrase, summarize, normalize whitespace, or fabricate** a quote.
+- Quote from your assigned section(s). If a required control is simply absent, say so in
+  the finding/reasoning — do not invent a quote for something that isn't there.
+- Include the `section` heading and a `line_range` for each quote.
 
 ## Output format
 Return ONE JSON object and NOTHING else (no markdown fences):
@@ -34,25 +40,17 @@ Return ONE JSON object and NOTHING else (no markdown fences):
 {
   "guideline_domain": "<your domain>",
   "guideline_version": "<version>",
-  "evaluation_result": "COMPLIANT | PARTIALLY_COMPLIANT | NON_COMPLIANT",
-  "confidence": 0.0,
-  "rationale": "short justification",
-  "findings": [
-    { "issue": "...", "severity": "HIGH | MEDIUM | LOW", "recommendation": "..." }
-  ],
+  "status": "CONFORM | PARTIAL | NON_CONFORM",
+  "severity": "LOW | MEDIUM | HIGH",
+  "finding": "what is / isn't satisfied for this domain",
+  "reasoning": "why the evidence satisfies or violates the guideline",
   "evidence": [
-    {
-      "evidence_text": "...",
-      "section": "...",
-      "line_range": "23-23",
-      "confidence": 0.0,
-      "guideline_domain": "<your domain>",
-      "guideline_version": "<version>",
-      "source_hash": "<the source_hash you were given>"
-    }
-  ]
+    { "quote": "...exact SAD text...", "section": "...", "line_range": "29-30" }
+  ],
+  "confidence": 0.95
 }
 ```
 
-Every evidence item MUST carry full provenance (`section`, `line_range`,
-`guideline_domain`, `guideline_version`, `source_hash`) for auditability.
+- `status`: CONFORM (all met), PARTIAL (some gaps), NON_CONFORM (major requirements unmet).
+- `severity`: the highest severity among the gaps (LOW/MEDIUM/HIGH); use LOW when CONFORM.
+- `confidence`: 0.0–1.0.

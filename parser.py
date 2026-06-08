@@ -17,7 +17,7 @@ DOMAINS = ("data_movement", "security", "resilience")
 # Deterministic heading -> domain rules. Matched case-insensitively against the
 # section heading. First matching rule wins; unmatched sections are context-only.
 _HEADING_RULES: list[tuple[str, str]] = [
-    (r"data\s*flow|data\s*movement|pipeline|ingest|etl|integration|api", "data_movement"),
+    (r"data\s*flow|data\s*movement|pipeline|ingest|etl|integration", "data_movement"),
     (r"security|auth|access|encryption|secret", "security"),
     (r"resilien|availab|reliab|operations|disaster|failover|sla", "resilience"),
 ]

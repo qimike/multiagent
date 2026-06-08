@@ -15,6 +15,7 @@ keywords = ["claude", "agent-sdk", "governance", "multi-agent", "sad", "architec
 # Runtime dependencies (this file is the single source of truth).
 dependencies = [
     "claude-agent-sdk>=0.1.49",
+    "pydantic>=2",   # runtime validation of evaluator/synthesis output
 ]
 
 [project.optional-dependencies]

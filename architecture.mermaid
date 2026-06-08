@@ -21,7 +21,7 @@ flowchart TD
         SYN["Synthesis sub-agent<br/>merge + dedupe + consolidate evidence"]
     end
 
-    ORCH -- "Agent tool: full SAD + assigned section(s) + guideline_version" --> DM
+    ORCH -- "Agent tool: full SAD + assigned section(s) + guideline_version + source_hash" --> DM
     ORCH -- "Agent tool" --> SEC
     ORCH -- "Agent tool" --> RES
 

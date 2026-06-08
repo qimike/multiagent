@@ -32,10 +32,11 @@ import sys
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
+from pydantic import ValidationError
 
 import parser
 from agents import EVALUATORS, build_agents, build_orchestrator_prompt
-from schema import ACTIVE_GUIDELINE_VERSION
+from schema import ACTIVE_GUIDELINE_VERSION, validate_final_output
 from tools import MCP_SERVER, SERVER_NAME, TOOL_NAMES
 
 ROOT = Path(__file__).parent
@@ -108,17 +109,46 @@ async def evaluate_sad(doc_path: Path, force: bool = False) -> dict | str:
         if getattr(message, "result", None):
             final = message.result
 
-    # 4) stamp the written result's top-level identity so the cache key is reliable
-    #    regardless of what the model emitted.
+    # 4) stamp identity, backfill evidence provenance (so it is never lost), then validate
     if out_path.exists():
         try:
             data = json.loads(out_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = None
+        if isinstance(data, dict):
             data["source_file"] = doc_path.name
             data["source_hash"] = source_hash
             data["guideline_version"] = version
+
+            # Backfill provenance on per-evaluation evidence, and remember quote->domain
+            # so the consolidated top-level evidence can be backfilled too.
+            quote_domain: dict[str, str] = {}
+            for ev in data.get("evaluations", []) or []:
+                dom = ev.get("guideline_domain")
+                for item in ev.get("evidence", []) or []:
+                    if isinstance(item, dict):
+                        item["source_hash"] = source_hash
+                        item.setdefault("guideline_version", version)
+                        if dom:
+                            item.setdefault("guideline_domain", dom)
+                            if item.get("quote"):
+                                quote_domain.setdefault(item["quote"], dom)
+            for item in data.get("evidence", []) or []:
+                if isinstance(item, dict):
+                    item["source_hash"] = source_hash
+                    item.setdefault("guideline_version", version)
+                    if "guideline_domain" not in item and item.get("quote") in quote_domain:
+                        item["guideline_domain"] = quote_domain[item["quote"]]
+
             out_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        except (json.JSONDecodeError, OSError):
-            pass
+
+            # Runtime validation — catch missing fields / malformed output loudly.
+            try:
+                validate_final_output(data)
+                print("  ✓ output validated against schema")
+            except ValidationError as exc:
+                print(f"  ✗ output FAILED schema validation:\n{exc}", file=sys.stderr)
+                sys.exit(1)
     return final
 
 

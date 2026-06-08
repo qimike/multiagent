@@ -1,17 +1,19 @@
-"""Output shapes for the SAD governance-evaluation framework.
+"""Output shapes + runtime validation for the SAD governance-evaluation framework.
 
-These example objects are injected into the agent prompts so the model emits the exact
-target shapes. There is no Python-side validation step — the Claude native sub-agents
-produce the JSON; these shapes are the contract.
+The example objects are injected into the agent prompts so the model emits the exact
+target shapes. The Pydantic models validate the final written output at runtime, so a
+missing field / malformed structure is caught instead of silently shipping.
 
-Evidence is produced directly during evaluation and must be an EXACT quotation from
-the SAD source text (never paraphrased). `find_evidence` is an optional helper, not a
-required step.
+Evidence is produced directly during evaluation and must be an EXACT quotation from the
+SAD source text (never paraphrased). Every evidence item carries full provenance
+(guideline_domain, guideline_version, source_hash) for auditability.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict
 
 # The governance domains (kept in sync with parser.DOMAINS).
 DOMAINS = ("data_movement", "security", "resilience")
@@ -22,9 +24,19 @@ ACTIVE_GUIDELINE_VERSION = "v1"
 STATUS_VALUES = ("CONFORM", "PARTIAL", "NON_CONFORM")
 SEVERITY_VALUES = ("LOW", "MEDIUM", "HIGH")
 
-# What each domain evaluator returns. `finding`, `reasoning`, and `evidence` are
-# distinct: the finding is the conclusion, the reasoning explains why the evidence
-# satisfies/violates the guideline, and each evidence item is an exact SAD quote.
+
+# ---------------------------------------------------------------------------
+# Example shapes (injected into prompts)
+# ---------------------------------------------------------------------------
+_EVIDENCE_EXAMPLE: dict[str, Any] = {
+    "quote": "Database credentials are currently stored in application configuration files and rotated manually each quarter.",
+    "section": "Security",
+    "line_range": "29-30",
+    "guideline_domain": "security",
+    "guideline_version": "v1",
+    "source_hash": "abc123...",
+}
+
 EVALUATOR_RESULT_EXAMPLE: dict[str, Any] = {
     "guideline_domain": "security",
     "guideline_version": "v1",
@@ -32,22 +44,13 @@ EVALUATOR_RESULT_EXAMPLE: dict[str, Any] = {
     "severity": "HIGH",
     "finding": "Secrets management and encryption-at-rest requirements are not met: "
     "database credentials are stored in plain configuration files and rotated manually.",
-    "reasoning": "The Secrets Management guideline requires credentials to live in an "
-    "approved vault with automated rotation; the quoted text shows config-file storage "
-    "with manual quarterly rotation, which violates that requirement.",
-    "evidence": [
-        {
-            "quote": "Database credentials are currently stored in application configuration files and rotated manually each quarter.",
-            "section": "Security",
-            "line_range": "29-30",
-        }
-    ],
+    "reasoning": "The Secrets Management guideline requires credentials in an approved "
+    "vault with automated rotation; the quoted text shows config-file storage with manual "
+    "rotation, which violates that requirement.",
+    "evidence": [_EVIDENCE_EXAMPLE],
     "confidence": 0.9,
 }
 
-# What the synthesis agent returns / the orchestrator writes — the final assessment.
-# Top level carries source_file, source_hash, guideline_version, the overall result +
-# confidence, the per-domain evaluations, and consolidated evidence.
 FINAL_OUTPUT_EXAMPLE: dict[str, Any] = {
     "source_file": "source.md",
     "source_hash": "abc123...",
@@ -55,11 +58,46 @@ FINAL_OUTPUT_EXAMPLE: dict[str, Any] = {
     "evaluation_result": "NON_CONFORM",
     "confidence": 0.9,
     "evaluations": [EVALUATOR_RESULT_EXAMPLE],
-    "evidence": [
-        {
-            "quote": "Database credentials are currently stored in application configuration files and rotated manually each quarter.",
-            "section": "Security",
-            "line_range": "29-30",
-        }
-    ],
+    "evidence": [_EVIDENCE_EXAMPLE],
 }
+
+
+# ---------------------------------------------------------------------------
+# Runtime validation (Pydantic) — applied to the final written output
+# ---------------------------------------------------------------------------
+class EvidenceItem(BaseModel):
+    model_config = ConfigDict(extra="allow")  # tolerate extra keys, require these
+    quote: str
+    section: str
+    line_range: str
+    guideline_domain: str
+    guideline_version: str
+    source_hash: str
+
+
+class EvaluatorResult(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    guideline_domain: str
+    guideline_version: str
+    status: Literal["CONFORM", "PARTIAL", "NON_CONFORM"]
+    severity: Literal["LOW", "MEDIUM", "HIGH"]
+    finding: str
+    reasoning: str
+    evidence: list[EvidenceItem]
+    confidence: float
+
+
+class FinalOutput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    source_file: str
+    source_hash: str
+    guideline_version: str
+    evaluation_result: Literal["CONFORM", "PARTIAL", "NON_CONFORM"]
+    confidence: float
+    evaluations: list[EvaluatorResult]
+    evidence: list[EvidenceItem]
+
+
+def validate_final_output(data: dict) -> FinalOutput:
+    """Validate the final assessment dict; raises pydantic.ValidationError if malformed."""
+    return FinalOutput.model_validate(data)

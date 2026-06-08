@@ -52,9 +52,9 @@ def build_evaluator_prompt(ev: Evaluator) -> str:
 Load and follow the "{SHARED_SKILL}" skill — it defines your procedure, reasoning, and
 the exact JSON output format. Evaluate ONLY the "{ev.key}" domain.
 
-You will be given: the active guideline version, the full SAD, and the specific
-section(s) assigned to you (ownership was decided deterministically — do not reassign or
-discover sections). Steps:
+You will be given: the active guideline version, the source_hash, the full SAD, and the
+specific section(s) assigned to you (ownership was decided deterministically — do not
+reassign or discover sections). Steps:
 1. Call get_guideline("{ev.key}", <version>) and use BOTH the guideline and examples.
 2. Evaluate your assigned section text against the guideline. Generate evidence DIRECTLY
    from the section text you already have — find_evidence is an OPTIONAL helper, not
@@ -64,7 +64,9 @@ discover sections). Steps:
    - reasoning = why the evidence satisfies or violates the guideline;
    - evidence = EXACT, verbatim quotations from the SAD (never paraphrase, never
      fabricate; if a control is absent, say so in the finding rather than inventing a quote).
-4. Return ONE JSON object in this exact shape:
+4. Every evidence item MUST carry full provenance: section, line_range, guideline_domain
+   ("{ev.key}"), guideline_version, and source_hash (the source_hash you were given).
+5. Return ONE JSON object in this exact shape:
 {_RESULT_SHAPE}"""
 
 
@@ -77,8 +79,9 @@ Do all of the following:
 - Collect the evaluator outputs verbatim into "evaluations" (keep each domain's finding,
   reasoning, status, severity, evidence, and confidence).
 - Merge the findings/reasoning across domains and consolidate all evidence into the
-  top-level "evidence" array. Each evidence item is an exact quote with section and
-  line_range ({{"quote", "section", "line_range"}}). Do NOT paraphrase quotes.
+  top-level "evidence" array. Each evidence item is an exact quote that MUST keep its full
+  provenance: {{"quote", "section", "line_range", "guideline_domain", "guideline_version",
+  "source_hash"}}. Do NOT paraphrase quotes and do NOT drop any provenance field.
 - Compute an overall "evaluation_result" (CONFORM | PARTIAL | NON_CONFORM) and overall
   "confidence" from the per-domain results.
 

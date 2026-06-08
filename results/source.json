@@ -3,76 +3,106 @@
   "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
   "guideline_version": "v1",
   "evaluation_result": "NON_CONFORM",
-  "confidence": 0.92,
+  "confidence": 0.93,
   "evaluations": [
     {
       "guideline_domain": "data_movement",
       "guideline_version": "v1",
       "status": "PARTIAL",
       "severity": "HIGH",
-      "finding": "The platform, movement pattern, and reconciliation are clearly described and meet the guideline, but three requirements are unmet: (1) PII (email, phone, address) is stored and exported without documented classification or handling rules; (2) no retention/deletion policy exists for raw events or historical profiles; (3) data lineage is only partial. Additionally, the export and REST API integrations lack any documented contract or schema versioning strategy.",
-      "reasoning": "Platform & Movement Patterns are satisfied: the Data Flow section states Kafka -> Snowflake -> dbt with an explicit streaming-vs-batch boundary (streaming job for raw events, separate nightly batch reconciliation), and the reconciliation job has a defined frequency (nightly), matching guideline 'state the data platform and movement pattern' and 'streaming vs. batch boundaries MUST be explicit.' However, the Classification & PII requirement is violated (HIGH): email, phone, and address are stored and sent in a nightly export, yet classification 'is not yet documented' and no masking/encryption handling for the transfer is referenced \u2014 mirroring Example B. Data Retention is violated (MEDIUM): the guideline requires a defined retention period for both raw and derived/historical data plus deletion/archival behavior, but the SAD states there is 'no defined retention period for raw events or historical profiles' \u2014 mirroring Example C. Data Lineage is only partial, which the guideline says SHOULD be flagged as a gap. Movement across the integration boundary (the file export and REST API) lacks any documented contract or schema versioning strategy, threatening reproducibility and consumer stability of downstream data movement.",
+      "finding": "The platform and movement pattern are clearly described (Kafka streaming into Snowflake with dbt transforms, plus a nightly reconciliation batch), satisfying the Platform & Movement Patterns requirement. However, multiple mandatory Data Movement controls are unmet: PII (email, phone, address) is stored and exported without documented classification or handling rules (MUST), no retention period is defined for raw events or historical profiles (MUST), data lineage is only partially captured (gap), and the reconciliation job lacks a defined frequency and ownership. Integration adds further gaps: no documented contract or schema versioning strategy for the REST API or the export consumed downstream.",
+      "reasoning": "Platform & Movement Patterns are met because the streaming-vs-batch boundary is explicit (streaming ingest to Snowflake; separate nightly batch reconciliation). The Classification & PII requirement is violated because email, phone, and address are stored and a nightly export sends profile fields downstream, yet classification 'has been discussed but is not yet documented' and no handling/masking/encryption rules are referenced \u2014 this mirrors Example B (PII moved without classification, HIGH). Data Retention is violated because the guideline requires a retention period for both raw and derived/historical data and deletion/archival behavior, but the text states there is 'no defined retention period for raw events or historical profiles' (mirrors Example C). Data Lineage is only partial via dbt docs, which the guideline says SHOULD be flagged as a gap. Data Quality & Reconciliation is partially met: a reconciliation job exists but no defined frequency or ownership. The lack of any contract/schema versioning for the export \u2014 the downstream movement of profile data to analytics \u2014 further weakens governed data movement.",
       "evidence": [
         {
           "quote": "Source systems publish change events to Kafka. A streaming job lands raw events in\nSnowflake, where dbt models transform them into the unified customer profile. A\nseparate nightly batch job reconciles records that arrive late.",
           "section": "Data Flow",
-          "line_range": "14-17"
+          "line_range": "14-16",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "The platform stores\nemail, phone, and address fields, and a nightly export sends selected profile fields\nto the analytics team. Data classification has been discussed but is not yet\ndocumented",
           "section": "Data Flow",
-          "line_range": "17-20"
+          "line_range": "16-19",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "there is no defined retention period for raw events or historical\nprofiles.",
           "section": "Data Flow",
-          "line_range": "20-21"
+          "line_range": "19-20",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "Data lineage is partially captured through dbt's built-in documentation.",
           "section": "Data Flow",
-          "line_range": "21-22"
+          "line_range": "21-22",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "The analytics team consumes the\nnightly export as files on a shared bucket.",
           "section": "Integration",
-          "line_range": "31-32"
+          "line_range": "31-32",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "There is no documented contract or schema\nversioning strategy for the REST API or the export.",
           "section": "Integration",
-          "line_range": "34-35"
+          "line_range": "34-35",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         }
       ],
-      "confidence": 0.9
+      "confidence": 0.92
     },
     {
       "guideline_domain": "security",
       "guideline_version": "v1",
       "status": "PARTIAL",
       "severity": "HIGH",
-      "finding": "Authentication and encryption-in-transit are satisfied, but three requirements are unmet: (1) Authorization mapping of roles to endpoints is incomplete, (2) Secrets Management requires database credentials in an approved vault with automated rotation but they sit in plain config files rotated manually, and (3) encryption at rest for sensitive data is not addressed.",
-      "reasoning": "Authentication is conformant: external APIs use OAuth2 via corporate SSO and service-to-service traffic uses short-lived bearer tokens (not static secrets), meeting both Authentication requirements. Encryption-in-transit is conformant: TLS 1.2 meets the 'TLS 1.2 or higher' requirement. However, the Authorization guideline requires every endpoint to be mapped to permitted roles; the text explicitly states this mapping is not finalized, so least-privilege enforcement is incomplete (the 'admin' role exists, but elevated-role enforcement cannot be confirmed without endpoint mapping). The Secrets Management guideline mandates that database credentials be stored in an approved vault (never in plain config files) with automated rotation for high-value secrets; the text states credentials live in application configuration files and are rotated manually each quarter, directly violating both clauses. Finally, the Encryption guideline requires sensitive data to be encrypted at rest; the section addresses only in-transit encryption and is silent on at-rest encryption for the credential-bearing data store, so this control is absent.",
+      "finding": "Authentication and encryption-in-transit requirements are met, but the Security section has material gaps: (1) the authorization role model is incomplete because roles are not mapped to specific endpoints; (2) secrets management is non-compliant because database credentials are stored in plain configuration files and rotated manually rather than in an approved vault with automated rotation; and (3) encryption at rest for the data store is not addressed.",
+      "reasoning": "Authentication is conformant: external API calls use OAuth2 via corporate SSO, and service-to-service traffic uses short-lived bearer tokens, satisfying the Authentication requirements for approved auth methods and short-lived credentials. Encryption in transit is conformant: TLS 1.2 meets the 'TLS 1.2 or higher' bar. However, the Authorization guideline requires every endpoint/resource to be mapped to permitted roles; the SAD explicitly states this mapping is not finalized, so least-privilege is not demonstrably enforced. The Secrets Management guideline requires secrets to live in an approved vault (never plain config files) with automated rotation for high-value secrets; the SAD stores database credentials in application configuration files and rotates them manually, directly violating both clauses (mirroring Example C). Finally, the Encryption guideline requires sensitive data to be encrypted at rest, and the section addresses only TLS in transit with no mention of at-rest encryption for the database (mirroring Example B). The highest-severity gaps (secrets in config files; encryption at rest unaddressed) are HIGH.",
       "evidence": [
         {
           "quote": "All external API calls authenticate via OAuth2 using the corporate identity provider\n(SSO). Service-to-service traffic uses short-lived bearer tokens.",
           "section": "Security",
-          "line_range": "24-25"
+          "line_range": "24-25",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "Traffic between\nclients and the API gateway is encrypted using TLS 1.2.",
           "section": "Security",
-          "line_range": "25-26"
+          "line_range": "25-26",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "Role definitions exist for\n\"reader\" and \"admin\", though the mapping of roles to specific endpoints has not yet\nbeen finalized.",
           "section": "Security",
-          "line_range": "26-28"
+          "line_range": "26-28",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         },
         {
           "quote": "Database credentials are currently stored in application configuration\nfiles and rotated manually each quarter.",
           "section": "Security",
-          "line_range": "28-30"
+          "line_range": "28-30",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         }
       ],
       "confidence": 0.92
@@ -82,83 +112,141 @@
       "guideline_version": "v1",
       "status": "NON_CONFORM",
       "severity": "HIGH",
-      "finding": "Multiple mandatory resilience requirements are unmet: no availability/latency SLA/SLO is stated for the externally consumed REST API, no incident runbook or escalation path is documented, no backups/DR strategy is defined, and no recovery objectives (RTO/RPO) are stated for the profile store. Single points of failure, failover behavior, and monitoring/alerting coverage are also not described. Only autoscaling and on-call rotation are partially addressed.",
-      "reasoning": "The Availability Targets requirement mandates SLA/SLO with an owner for each externally consumed service, but the section explicitly states none exists for the new API. The Disaster Recovery requirement mandates defined backups, testable restore, and stated RTO/RPO for critical data, yet the section explicitly states these are not described for the profile store. The Incident Response section's runbook is also explicitly absent. These map to the violation Examples B (no SLA/runbook, HIGH) and C (no DR/RTO/RPO, HIGH). Autoscaling and on-call ownership are present (SHOULD-level items), which prevents the gaps from being mere omissions but does not offset the unmet MUST requirements. Redundancy/failover and monitoring/alerting (both MUST) are not addressed at all. The highest severity among these gaps is HIGH.",
+      "finding": "The Resilience section fails multiple mandatory requirements. No SLA/SLO availability or latency targets are defined for the externally consumed REST API; no incident runbook is documented; and backups, restore testing, and recovery objectives (RTO/RPO) for the profile store are not described. No failover behavior, single-point-of-failure analysis, or monitoring/alerting coverage is described. Only autoscaling (a SHOULD item) and on-call rotation ownership are partially addressed.",
+      "reasoning": "The Availability Targets requirement MUST have SLA/SLO with an owner for each externally consumed service; the SAD explicitly states no SLA exists for the new API, violating this (mirrors Example B). The Disaster Recovery requirement MUST define backups, testable restores, and RTO/RPO for critical data; the SAD explicitly states backups and RTO/RPO for the profile store are not described, violating this (mirrors Example C). The Monitoring & Alerting requirement MUST describe health checks, metrics, and alerting; none are mentioned. Redundancy/failover MUST identify and address single points of failure and describe failover; the shared cluster with autoscaling is noted but no failover or SPOF analysis is given. Incident Response (SHOULD) is only partially met: on-call rotation is named, but no escalation path or runbook exists (the runbook is explicitly absent). Because multiple MUST requirements are unmet, status is NON_CONFORM at HIGH severity.",
       "evidence": [
+        {
+          "quote": "The service runs on the shared Kubernetes cluster with autoscaling enabled.",
+          "section": "Resilience",
+          "line_range": "38-38",
+          "guideline_domain": "resilience",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
+        },
+        {
+          "quote": "On-call\nrotation is handled by the platform team.",
+          "section": "Resilience",
+          "line_range": "38-39",
+          "guideline_domain": "resilience",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
+        },
         {
           "quote": "There is no documented SLA or incident\nrunbook for the new API yet, and backups and recovery objectives (RTO/RPO) for the\nprofile store are not described.",
           "section": "Resilience",
-          "line_range": "39-41"
-        },
-        {
-          "quote": "The service runs on the shared Kubernetes cluster with autoscaling enabled. On-call\nrotation is handled by the platform team.",
-          "section": "Resilience",
-          "line_range": "38-39"
+          "line_range": "39-41",
+          "guideline_domain": "resilience",
+          "guideline_version": "v1",
+          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
         }
       ],
-      "confidence": 0.93
+      "confidence": 0.95
     }
   ],
   "evidence": [
     {
       "quote": "Source systems publish change events to Kafka. A streaming job lands raw events in\nSnowflake, where dbt models transform them into the unified customer profile. A\nseparate nightly batch job reconciles records that arrive late.",
       "section": "Data Flow",
-      "line_range": "14-17"
+      "line_range": "14-16",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "The platform stores\nemail, phone, and address fields, and a nightly export sends selected profile fields\nto the analytics team. Data classification has been discussed but is not yet\ndocumented",
       "section": "Data Flow",
-      "line_range": "17-20"
+      "line_range": "16-19",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "there is no defined retention period for raw events or historical\nprofiles.",
       "section": "Data Flow",
-      "line_range": "20-21"
+      "line_range": "19-20",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "Data lineage is partially captured through dbt's built-in documentation.",
       "section": "Data Flow",
-      "line_range": "21-22"
+      "line_range": "21-22",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "The analytics team consumes the\nnightly export as files on a shared bucket.",
       "section": "Integration",
-      "line_range": "31-32"
+      "line_range": "31-32",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "There is no documented contract or schema\nversioning strategy for the REST API or the export.",
       "section": "Integration",
-      "line_range": "34-35"
+      "line_range": "34-35",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "All external API calls authenticate via OAuth2 using the corporate identity provider\n(SSO). Service-to-service traffic uses short-lived bearer tokens.",
       "section": "Security",
-      "line_range": "24-25"
+      "line_range": "24-25",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "Traffic between\nclients and the API gateway is encrypted using TLS 1.2.",
       "section": "Security",
-      "line_range": "25-26"
+      "line_range": "25-26",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "Role definitions exist for\n\"reader\" and \"admin\", though the mapping of roles to specific endpoints has not yet\nbeen finalized.",
       "section": "Security",
-      "line_range": "26-28"
+      "line_range": "26-28",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "Database credentials are currently stored in application configuration\nfiles and rotated manually each quarter.",
       "section": "Security",
-      "line_range": "28-30"
+      "line_range": "28-30",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
+    },
+    {
+      "quote": "The service runs on the shared Kubernetes cluster with autoscaling enabled.",
+      "section": "Resilience",
+      "line_range": "38-38",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
+    },
+    {
+      "quote": "On-call\nrotation is handled by the platform team.",
+      "section": "Resilience",
+      "line_range": "38-39",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     },
     {
       "quote": "There is no documented SLA or incident\nrunbook for the new API yet, and backups and recovery objectives (RTO/RPO) for the\nprofile store are not described.",
       "section": "Resilience",
-      "line_range": "39-41"
-    },
-    {
-      "quote": "The service runs on the shared Kubernetes cluster with autoscaling enabled. On-call\nrotation is handled by the platform team.",
-      "section": "Resilience",
-      "line_range": "38-39"
+      "line_range": "39-41",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c"
     }
   ]
 }

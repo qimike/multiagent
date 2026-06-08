@@ -31,7 +31,9 @@ those at runtime.
   **Never paraphrase, summarize, normalize whitespace, or fabricate** a quote.
 - Quote from your assigned section(s). If a required control is simply absent, say so in
   the finding/reasoning — do not invent a quote for something that isn't there.
-- Include the `section` heading and a `line_range` for each quote.
+- Every evidence item MUST carry full **provenance** for auditability: `section`,
+  `line_range`, `guideline_domain` (your domain), `guideline_version` (the version you
+  were given), and `source_hash` (the source_hash you were given).
 
 ## Output format
 Return ONE JSON object and NOTHING else (no markdown fences):
@@ -45,7 +47,14 @@ Return ONE JSON object and NOTHING else (no markdown fences):
   "finding": "what is / isn't satisfied for this domain",
   "reasoning": "why the evidence satisfies or violates the guideline",
   "evidence": [
-    { "quote": "...exact SAD text...", "section": "...", "line_range": "29-30" }
+    {
+      "quote": "...exact SAD text...",
+      "section": "...",
+      "line_range": "29-30",
+      "guideline_domain": "<your domain>",
+      "guideline_version": "<version>",
+      "source_hash": "<the source_hash you were given>"
+    }
   ],
   "confidence": 0.95
 }

@@ -66,12 +66,22 @@ each sub-agent loads them at runtime via `get_guideline(domain, version)`.
 
 A single in-process MCP server is shared by all agents (no per-domain server).
 
-## Evidence model
+## Evidence model & provenance
 
 Evidence is generated **directly during evaluation** and every `quote` is an **exact,
 verbatim** substring of the SAD (never paraphrased). Each evaluator keeps **finding**
 (the conclusion), **reasoning** (why the evidence satisfies/violates the guideline), and
 **evidence** (the exact quotes) distinct. `find_evidence` is only an optional helper.
+
+Every evidence item carries full **provenance** for auditability/reproducibility:
+`section`, `line_range`, `guideline_domain`, `guideline_version`, `source_hash`. Synthesis
+preserves these fields, and Python backfills them after the run so they are never lost.
+
+## Validation
+
+The final written output is validated at runtime with **Pydantic** models
+(`schema.py: validate_final_output`). Malformed or incomplete output (missing fields,
+bad enum values) fails loudly with a non-zero exit instead of shipping silently.
 
 ## Output schema (`results/<doc>.json`)
 
@@ -86,9 +96,11 @@ verbatim** substring of the SAD (never paraphrased). Each evaluator keeps **find
     { "guideline_domain": "security", "guideline_version": "v1",
       "status": "PARTIAL", "severity": "HIGH",
       "finding": "…", "reasoning": "…", "confidence": 0.9,
-      "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30" } ] }
+      "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30",
+                      "guideline_domain": "security", "guideline_version": "v1", "source_hash": "…" } ] }
   ],
-  "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30" } ]
+  "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30",
+                  "guideline_domain": "security", "guideline_version": "v1", "source_hash": "…" } ]
 }
 ```
 
@@ -99,7 +111,7 @@ verbatim** substring of the SAD (never paraphrased). Each evaluator keeps **find
 
     # The SAD document path is REQUIRED — exactly one document per run.
     governance-review documents/source.md            # evaluate one SAD
-    governance-review --force documents/source.md    # ignore the cache
+    governance-review documents/source.md --force    # ignore the cache
     # or: python main_orchestrator.py documents/source.md [--force]
 
 ## Project layout

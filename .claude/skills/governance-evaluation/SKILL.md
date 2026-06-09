@@ -7,7 +7,8 @@ description: How to evaluate one SAD governance domain — reasoning strategy an
 
 You evaluate exactly ONE governance domain of a Solution Architecture Document (SAD).
 Your domain, the active guideline version, the `source_hash`, and your assigned
-section(s) are given to you by the orchestrator. You do NOT choose your own sections.
+section(s) are given to you by the orchestrator. The `section-assignment` agent decided
+which sections are yours — you do NOT choose, discover, or reassign your own sections.
 
 This skill describes HOW to evaluate. It deliberately contains no domain rules — load
 those at runtime.

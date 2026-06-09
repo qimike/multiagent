@@ -2,8 +2,8 @@
 
 Evaluates a **Solution Architecture Document (SAD)** in Markdown against versioned
 governance guidelines and produces an evidence-backed, auditable assessment. The
-execution model is **Claude SDK native sub-agents**; deterministic work (hashing,
-caching, parsing, section ownership) stays in Python.
+execution model is **Claude SDK native sub-agents**; only deterministic work (hashing,
+caching) stays in Python — **section ownership is decided by Claude, not Python**.
 
 ## Pipeline
 
@@ -11,28 +11,35 @@ caching, parsing, section ownership) stays in Python.
 source.md
   → SHA256 (source_hash)
   → cache check            (key = source_hash + guideline_version)
-  → deterministic parser   (parser.py decides section ownership — agents never do)
   → Claude native orchestrator query()  (delegates via the Agent tool)
+       → section-assignment sub-agent  (semantically assigns sections to domains)
        → Data Movement / Security / Resilience sub-agents
        → Synthesis sub-agent
   → results/<doc>.json
 ```
 
-Python is a thin deterministic pre-processor; the **orchestrator agent** does the
-routing-to-sub-agents and the sub-agents do the evaluation. The orchestrator never
-evaluates the SAD itself.
+Python is a thin deterministic pre-processor (hash + cache only); the **orchestrator
+agent** routes to sub-agents, the **section-assignment agent** decides ownership, and the
+domain sub-agents do the evaluation. The orchestrator never evaluates the SAD itself and
+never assigns sections.
 
-## Deterministic section ownership
+## Semantic section assignment (Claude, not Python)
 
-`parser.py` splits the SAD by Markdown headings and assigns **each section to exactly
-one domain** (or none, for context), producing a routing map like:
+There is **no heading regex and no routing map** anywhere in Python. The
+`section-assignment` Claude native agent reads the entire SAD, understands the purpose of
+each section, and returns which domain(s) should evaluate it:
 
 ```json
-{ "Data Flow": "data_movement", "Security": "security", "Resilience": "resilience" }
+{
+  "data_movement": ["2.2", "4.1", "4.2", "9"],
+  "security":      ["2.4", "4.4", "4.5", "9"],
+  "resilience":    ["2.4", "4.3", "9", "10"]
+}
 ```
 
-Sub-agents only evaluate the sections assigned to them — they do **not** discover
-sections or decide ownership.
+A section may belong to **multiple** domains, or to **none** (purely contextual sections
+are omitted). Domain sub-agents only evaluate the sections assigned to them — they do
+**not** discover sections or decide ownership.
 
 ## SHA256 + caching
 
@@ -120,20 +127,20 @@ bad enum values) fails loudly with a non-zero exit instead of shipping silently.
 ## Adding / configuring domains
 
 `domains.py` is the **single source of truth** (`DOMAIN_CONFIG`): each domain's display
-name, evaluator model, and heading-routing regex live there, and `parser.py`,
-`agents.py`, and `schema.py` all derive from it. To add a domain (API, Cost, Cloud, …),
-add an entry to `DOMAIN_CONFIG` plus `guidelines/<domain>/<version>/` — no other code
-changes.
+name, evaluator model, and a short `scope` description (handed to the section-assignment
+agent so it can reason about ownership) live there, and `agents.py` and `schema.py` derive
+from it. To add a domain (API, Cost, Cloud, …), add an entry to `DOMAIN_CONFIG` plus
+`guidelines/<domain>/<version>/` — no other code changes.
 
 ## Project layout
 
     documents/*.md                          # SAD(s) under review
     guidelines/<domain>/<version>/          # guideline.md + examples.md (governance content)
     .claude/skills/governance-evaluation/   # behavior-only skill
-    domains.py                              # DOMAIN_CONFIG — single source of truth (routing/name/model)
-    parser.py                               # deterministic section parser + ownership (routing from domains.py)
+    domains.py                              # DOMAIN_CONFIG — single source of truth (name/model/scope)
+    parser.py                               # structural Markdown splitter (line-number helper only — no ownership)
     tools.py                                # shared MCP server: get_guideline, find_evidence (optional locator)
-    agents.py                               # sub-agent AgentDefinitions + orchestrator prompt
+    agents.py                               # sub-agent AgentDefinitions (section-assignment, evaluators, synthesis) + orchestrator prompt
     schema.py                               # output shapes + Pydantic validation
-    main_orchestrator.py                    # hashing, caching, parsing, launches the native orchestrator
+    main_orchestrator.py                    # hashing, caching, launches the native orchestrator
     results/<doc>.json                      # final assessment (cache + audit record)

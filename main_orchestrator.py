@@ -4,14 +4,14 @@ Pipeline:
     source.md
       -> SHA256 (source_hash)
       -> cache check (key = source_hash + guideline_version)
-      -> deterministic section parser  (parser.py decides section ownership)
       -> Claude native orchestrator query()  (delegates via the Agent tool)
+           -> section-assignment sub-agent  (semantically assigns sections to domains)
            -> domain sub-agents (Data Movement / Security / Resilience)
            -> synthesis sub-agent
       -> results/<doc>.json
 
-The deterministic parts (hashing, caching, parsing, section ownership) stay in Python.
-Agent routing/orchestration is done by the Claude native orchestrator, not Python.
+Only the deterministic parts (hashing, caching) stay in Python. Section ownership and all
+agent routing/orchestration are done by Claude native agents, NOT by Python.
 
 Run (the SAD document path is REQUIRED — exactly one document per execution):
     export ANTHROPIC_API_KEY=sk-ant-...
@@ -34,8 +34,7 @@ from pathlib import Path
 from claude_agent_sdk import ClaudeAgentOptions, query
 from pydantic import ValidationError
 
-import parser
-from agents import EVALUATORS, build_agents, build_orchestrator_prompt
+from agents import build_agents, build_orchestrator_prompt
 from schema import ACTIVE_GUIDELINE_VERSION, validate_final_output
 from tools import MCP_SERVER, SERVER_NAME, TOOL_NAMES
 
@@ -75,27 +74,17 @@ async def evaluate_sad(doc_path: Path, force: bool = False) -> dict | str:
             print(f"  CACHE HIT: {doc_path.name} (source_hash {source_hash[:12]}, {version}) — skipping evaluation")
             return cached
 
-    # 2) deterministic parse + section ownership
-    sections = parser.parse_sections(text)
-    by_domain = parser.sections_by_domain(sections)
-    assignments = {
-        dom: [f"{s.heading} (lines {s.line_range})" for s in secs]
-        for dom, secs in by_domain.items()
-    }
     print(f"  source_hash: {source_hash[:12]}  guideline_version: {version}")
-    print("  deterministic section ownership:")
-    for ev in EVALUATORS:
-        owned = assignments.get(ev.key) or ["(none)"]
-        print(f"    {ev.key:13s} <- {', '.join(owned)}")
+    print("  section ownership: decided by the section-assignment agent (Claude)")
 
-    # 3) Claude native orchestrator (it delegates to the sub-agents)
+    # 2) Claude native orchestrator (it delegates to the sub-agents, including the
+    #    section-assignment agent that decides ownership)
     options = ClaudeAgentOptions(
         system_prompt=build_orchestrator_prompt(
             doc_path.relative_to(ROOT).as_posix(),
             out_path.relative_to(ROOT).as_posix(),
             source_hash,
             version,
-            assignments,
         ),
         cwd=str(ROOT),
         allowed_tools=["Read", "Write", "Glob", "Agent", "Skill", *TOOL_NAMES],
@@ -109,7 +98,7 @@ async def evaluate_sad(doc_path: Path, force: bool = False) -> dict | str:
         if getattr(message, "result", None):
             final = message.result
 
-    # 4) stamp identity, backfill evidence provenance (so it is never lost), then validate
+    # 3) stamp identity, backfill evidence provenance (so it is never lost), then validate
     if out_path.exists():
         try:
             data = json.loads(out_path.read_text(encoding="utf-8"))

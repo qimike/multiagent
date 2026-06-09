@@ -1,20 +1,27 @@
 # Security Examples
 
-These illustrate how to map SAD text to the guideline and phrase evidence/findings.
+These illustrate how to map SAD text to the guideline and phrase evidence/findings. They
+are illustrative — do not assume any specific section numbering.
 
-## Example A — compliant authentication
-SAD text: "All API access requires OAuth2 via the corporate IdP."
-- evidence: "All API access requires OAuth2 via the corporate IdP." → guideline
-  "Approved authentication on external APIs" → conformant.
+## Example A — approved authentication and service principals (conformant)
+SAD text: "Azure AD OAuth2 … Service Principal Authentication."
+- evidence: "Azure AD OAuth2" → "Authentication"; "Service Principal Authentication" →
+  "Service Principals" → conformant.
 
-## Example B — partial: encryption in transit but not at rest
-SAD text: "Traffic is encrypted with TLS 1.3. Database storage uses default settings."
-- evidence: "TLS 1.3" → "Encryption in transit" → conformant.
-- finding: issue "Encryption at rest is not addressed", severity HIGH,
-  recommendation "Confirm and document encryption at rest for the data store."
+## Example B — RBAC enforced across both systems (conformant)
+SAD text: "Azure RBAC … Snowflake RBAC … Read Only Access."
+- evidence: "Azure RBAC" + "Snowflake RBAC" → "Authorization & RBAC" enforced across the
+  cloud platform and the warehouse; "Read Only Access" → read-only consumers constrained.
 
-## Example C — secrets in config files (violation)
-SAD text: "Credentials are kept in application config files, rotated manually."
-- finding: issue "Secrets stored in config files, not an approved vault",
-  severity HIGH, recommendation "Move credentials to an approved secrets vault with
-  automated rotation."
+## Example C — encryption and network controls (conformant)
+SAD text: "TLS 1.2+ … Snowflake Triple Key Encryption … Private Endpoints … Service
+Endpoints."
+- evidence: "TLS 1.2+" → encryption in transit; "Snowflake Triple Key Encryption" →
+  encryption at rest; "Private Endpoints" → "Network Controls & Private Endpoints" →
+  conformant.
+
+## Example D — under-specified control (partial)
+SAD text: encryption at rest stated for the warehouse but not for the staging layer.
+- finding: issue "Encryption at rest not confirmed for the ADLS staging layer", severity
+  MEDIUM, recommendation "Confirm and document encryption at rest for every store that
+  holds data, including staging."

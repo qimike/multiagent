@@ -27,6 +27,15 @@ SEVERITY_VALUES = ("LOW", "MEDIUM", "HIGH")
 # ---------------------------------------------------------------------------
 # Example shapes (injected into prompts)
 # ---------------------------------------------------------------------------
+# Section-assignment agent output: domain key -> list of section identifiers it owns.
+# Keys are derived from DOMAINS so the shape always matches the configured domains.
+# The section identifiers below are illustrative only — Claude decides ownership.
+SECTION_ASSIGNMENT_EXAMPLE: dict[str, list[str]] = {
+    "data_movement": ["2.2", "2.3", "4.1", "4.2", "9"],
+    "security": ["2.4", "4.4", "4.5", "9"],
+    "resilience": ["2.4", "4.3", "9", "10"],
+}
+
 _EVIDENCE_EXAMPLE: dict[str, Any] = {
     "quote": "Database credentials are currently stored in application configuration files and rotated manually each quarter.",
     "section": "Security",

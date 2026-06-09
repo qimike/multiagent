@@ -5,24 +5,24 @@ flowchart TD
     subgraph DET["Deterministic pre-processing (Python)"]
         HASH["SHA256 -> source_hash"]
         CACHE{"cache hit?<br/>key = source_hash + guideline_version"}
-        PARSE["parser.py: split sections +<br/>assign ownership (routing map)"]
     end
 
     SAD --> HASH --> CACHE
     CACHE -- "hit" --> OUT["results/&lt;doc&gt;.json (returned)"]
-    CACHE -- "miss / --force" --> PARSE
-
-    PARSE -- "per-domain section assignments" --> ORCH
+    CACHE -- "miss / --force" --> ORCH
 
     subgraph NATIVE["Claude native execution (single parent query() + Agent tool)"]
-        ORCH["Orchestrator agent<br/>delegate assigned sections (does NOT evaluate / own sections)"]
+        ORCH["Orchestrator agent<br/>delegates only (does NOT evaluate / assign sections)"]
+        ASSIGN["section-assignment sub-agent<br/>reads full SAD, semantically assigns each<br/>section to domain(s) — Claude decides ownership"]
         DM["Data Movement sub-agent"]
         SEC["Security sub-agent"]
         RES["Resilience sub-agent"]
         SYN["Synthesis sub-agent<br/>merge + dedupe + consolidate evidence"]
     end
 
-    ORCH -- "Agent tool: full SAD + assigned section(s) + guideline_version + source_hash" --> DM
+    ORCH -- "Agent tool: full SAD" --> ASSIGN
+    ASSIGN -- "{data_movement:[…], security:[…], resilience:[…]}" --> ORCH
+    ORCH -- "Agent tool: full SAD + ASSIGNED section ids + guideline_version + source_hash" --> DM
     ORCH -- "Agent tool" --> SEC
     ORCH -- "Agent tool" --> RES
 

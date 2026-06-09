@@ -1,242 +1,440 @@
 {
   "source_file": "source.md",
-  "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+  "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
   "guideline_version": "v1",
-  "evaluation_result": "NON_CONFORM",
-  "confidence": 0.93,
+  "evaluation_result": "PARTIAL",
+  "confidence": 0.89,
   "evaluations": [
     {
       "guideline_domain": "data_movement",
       "guideline_version": "v1",
       "status": "PARTIAL",
-      "severity": "HIGH",
-      "finding": "The platform and movement patterns are well described (Kafka streaming into Snowflake with dbt transformations, plus a nightly batch reconciliation and nightly export), and late-arriving data is handled by a reconciliation job. However, several mandatory Data Movement requirements are unmet: PII (email, phone, address) is stored and exported without data classification or any documented handling/masking/encryption rules; no retention period is defined for raw events or historical profiles and deletion/archival behavior is unspecified; lineage is only partial; and the export/REST integration lacks any documented contract or schema versioning strategy.",
-      "reasoning": "The 'Platform & Movement Patterns' requirement is satisfied: the SAD explicitly states Kafka streaming, Snowflake + dbt transformation, and a separate nightly batch reconciliation, making the streaming vs. batch boundary explicit and reproducible. The reconciliation job partially satisfies 'Data Quality & Reconciliation' (late-arriving data handling is described) though its ownership/frequency beyond 'nightly' is thin. The 'Classification & PII' requirement is violated (HIGH): email, phone, and address are stored and exported, but classification is undocumented and no handling rules (masking/encryption) are referenced \u2014 this matches Example B. The 'Data Retention' requirement is violated (MEDIUM): no retention period for raw or historical data and no deletion/archival behavior, matching Example C. The 'Data Lineage' requirement is only partially met and must be flagged as a gap since lineage is partial via dbt docs. For Integration, the absence of any contract or schema versioning strategy for the export/REST API is a movement-governance gap for downstream data movement. The highest severity gap (unclassified PII in transit/at rest) drives an overall HIGH severity and PARTIAL status.",
+      "severity": "MEDIUM",
+      "finding": "Source and target systems, the end-to-end ordered data flow, the transformation stage and platform, source purge, and a regulatory retention requirement are all clearly specified. However, the data-movement design has gaps: (1) lineage is only minimally addressed via a single audit-metadata step rather than end-to-end capture; (2) retention is stated as a requirement (YE+7 / 10-year) but is not bound to specific raw (ADLS Gen2) vs. derived (Snowflake) datasets, and the source-purge step is not explicitly gated on that retention period; and (3) no data-quality, reconciliation, or late-arriving/duplicate handling between source and target is described.",
+      "reasoning": "Source & Target Systems: Dataverse (system of record) and Snowflake (archival/reporting destination) are explicitly named with a clear leave/land boundary, satisfying that requirement. Data Flow: Section 4.1 and 4.2 give an ordered, reproducible extract->stage->transform->load sequence (Dynamics/Dataverse -> ADF -> ADLS Gen2 -> Databricks -> Snowflake), and the movement mechanism (ADF Pipeline) is named, satisfying Data Flow. Transformation: 'Transform data in Databricks' names both the step and the platform, and raw (ADLS Gen2) vs. transformed (Snowflake) data are distinguishable, satisfying Transformation. Lineage: only 'Record audit metadata' is present at a single step rather than end-to-end lineage at each stage, so lineage is partial and must be flagged as a gap. Retention: YE+7 and 10-year retention are required, but the guideline requires a retention period defined for BOTH raw and derived data within the design; the SAD ties retention to neither ADLS nor Snowflake specifically, and Step 7 'Purge archived records from Dataverse' is not explicitly conditioned on the retention period, so deletion-consistent-with-retention is unverified. Data Quality & Reconciliation: no reconciliation frequency/ownership or late-arriving/duplicate handling is described anywhere in the assigned sections.",
       "evidence": [
         {
-          "quote": "Source systems publish change events to Kafka. A streaming job lands raw events in\nSnowflake, where dbt models transform them into the unified customer profile. A\nseparate nightly batch job reconciles records that arrive late.",
-          "section": "Data Flow",
-          "line_range": "14-17",
+          "quote": "Extract case records from Dataverse.",
+          "section": "4.2 Archival Data Flow",
+          "line_range": "173-173",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-          "evidence_confidence": 0.96
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.95
         },
         {
-          "quote": "The platform stores\nemail, phone, and address fields, and a nightly export sends selected profile fields\nto the analytics team. Data classification has been discussed but is not yet\ndocumented",
-          "section": "Data Flow",
-          "line_range": "16-19",
+          "quote": "Persist raw data into ADLS Gen2.",
+          "section": "4.2 Archival Data Flow",
+          "line_range": "177-177",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-          "evidence_confidence": 0.98
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.95
         },
         {
-          "quote": "there is no defined retention period for raw events or historical\nprofiles.",
-          "section": "Data Flow",
-          "line_range": "19-20",
+          "quote": "Transform data in Databricks.",
+          "section": "4.2 Archival Data Flow",
+          "line_range": "185-185",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
           "evidence_confidence": 0.97
         },
         {
-          "quote": "Data lineage is partially captured through dbt's built-in documentation.",
-          "section": "Data Flow",
-          "line_range": "21",
+          "quote": "Load into Snowflake.",
+          "section": "4.2 Archival Data Flow",
+          "line_range": "189-189",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.95
+        },
+        {
+          "quote": "Purge archived records from Dataverse.",
+          "section": "4.2 Archival Data Flow",
+          "line_range": "193-193",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
           "evidence_confidence": 0.9
         },
         {
-          "quote": "There is no documented contract or schema\nversioning strategy for the REST API or the export.",
-          "section": "Integration",
-          "line_range": "34-35",
+          "quote": "Record audit metadata.",
+          "section": "4.2 Archival Data Flow",
+          "line_range": "181-181",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.8
+        },
+        {
+          "quote": "Meet YE+7 and 10-year retention requirements.",
+          "section": "2.2 Business Functional Requirements",
+          "line_range": "78-78",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
           "evidence_confidence": 0.85
+        },
+        {
+          "quote": "Dynamics 365\n\n\u2193\n\nADF Pipeline\n\n\u2193\n\nADLS Gen2\n\n\u2193\n\nDatabricks\n\n\u2193\n\nSnowflake\n\n\u2193\n\nPower BI / Power Apps",
+          "section": "4.1 Logical View",
+          "line_range": "157-161",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.9
+        },
+        {
+          "quote": "Retention, Classification, Governance.",
+          "section": "9 Data",
+          "line_range": "201-201",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.55
         }
       ],
-      "confidence": 0.92
+      "confidence": 0.88
     },
     {
       "guideline_domain": "security",
       "guideline_version": "v1",
       "status": "PARTIAL",
-      "severity": "HIGH",
-      "finding": "Authentication and encryption-in-transit requirements are met (OAuth2/SSO for external APIs, short-lived service-to-service tokens, TLS 1.2). However, three requirements are violated or unmet: (1) Secrets Management \u2014 database credentials are stored in plain application configuration files and rotated manually, not in an approved vault with automated rotation; (2) Authorization \u2014 roles are defined but endpoints are not mapped to roles, breaking the least-privilege/endpoint-mapping requirement; (3) Encryption at rest \u2014 not addressed for the database/profile store. Network security restrictions to the data store are also not described in this section.",
-      "reasoning": "The Authentication guideline requires externally exposed APIs to use an approved method (OAuth2/OIDC/SSO) and service-to-service calls to use short-lived credentials \u2014 both are satisfied by the quoted OAuth2/SSO and short-lived bearer token text. The Encryption-in-transit requirement (TLS 1.2 or higher) is satisfied by the TLS 1.2 quote. The Secrets Management guideline mandates secrets be stored in an approved vault, never in plain config files, with automated rotation for high-value secrets; the quoted text shows config-file storage and manual rotation, a direct violation matching Example C (HIGH). The Authorization guideline requires every endpoint to be mapped to permitted roles; the quoted text admits this mapping 'has not yet been finalized,' so least-privilege enforcement is incomplete. The Encryption-at-rest requirement for sensitive data is not addressed anywhere in the section (the profile store holds email, phone, address), a HIGH gap consistent with Example B.",
+      "severity": "MEDIUM",
+      "finding": "Authentication, service principals, RBAC, transit encryption, and network controls are well-specified and conformant. The one gap is encryption at rest: it is confirmed for the Snowflake warehouse but not for the ADLS Gen2 staging layer, which holds raw archival data. Service principal credential lifecycle (short-lived/managed vs. static secrets) is also not documented (a SHOULD).",
+      "reasoning": "The guideline requires an approved authentication method, service principals for pipeline auth, RBAC enforced consistently across every system, TLS 1.2+ in transit, encryption at rest in EVERY store (staging and warehouse), and restricted/private network access. The SAD satisfies most of these: 'Azure AD OAuth2' meets the Authentication requirement; 'Service Principal Authentication' meets the Service Principals requirement; 'Azure RBAC' plus 'Snowflake RBAC' enforce RBAC across both the cloud platform and the warehouse, and 'Read Only Access' constrains read-only consumers per the least-privilege rule; 'TLS 1.2+' satisfies encryption in transit; 'Private Endpoints' and 'Service Endpoints' satisfy network controls. However, the Encryption guideline requires data at rest to be encrypted in every store that holds it. The SAD documents 'Snowflake Triple Key Encryption' (warehouse at-rest) but the data flow persists raw data into ADLS Gen2 staging, and no encryption-at-rest control is stated for that staging layer. This matches Example D (partial). Additionally, the Service Principals guideline says credentials SHOULD be short-lived/managed; the SAD names service principal auth but does not state credential lifecycle.",
       "evidence": [
         {
-          "quote": "Database credentials are currently stored in application configuration\nfiles and rotated manually each quarter.",
-          "section": "Security",
-          "line_range": "28-30",
+          "quote": "- Azure AD OAuth2\n- Service Principal Authentication",
+          "section": "4.4",
+          "line_range": "213-214",
           "guideline_domain": "security",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-          "evidence_confidence": 0.98
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.97
         },
         {
-          "quote": "Role definitions exist for\n\"reader\" and \"admin\", though the mapping of roles to specific endpoints has not yet\nbeen finalized.",
-          "section": "Security",
-          "line_range": "26-28",
+          "quote": "- Azure RBAC\n- Snowflake RBAC",
+          "section": "4.4",
+          "line_range": "218-219",
           "guideline_domain": "security",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.97
+        },
+        {
+          "quote": "- TLS 1.2+\n- Snowflake Triple Key Encryption",
+          "section": "4.4",
+          "line_range": "223-224",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.9
+        },
+        {
+          "quote": "- Private Endpoints\n- Service Endpoints",
+          "section": "4.4",
+          "line_range": "228-229",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
           "evidence_confidence": 0.95
         },
         {
-          "quote": "All external API calls authenticate via OAuth2 using the corporate identity provider\n(SSO). Service-to-service traffic uses short-lived bearer tokens.",
-          "section": "Security",
-          "line_range": "24-25",
+          "quote": "- Azure AD Authentication\n- RBAC Enforcement\n- Read Only Access",
+          "section": "4.5",
+          "line_range": "253-255",
           "guideline_domain": "security",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-          "evidence_confidence": 0.9
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.95
         },
         {
-          "quote": "Traffic between\nclients and the API gateway is encrypted using TLS 1.2.",
-          "section": "Security",
-          "line_range": "25-26",
+          "quote": "- Azure AD OAuth2\n- Service Principal Authentication\n- TLS 1.2+\n- RBAC Enforcement",
+          "section": "2.4",
+          "line_range": "103-106",
           "guideline_domain": "security",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-          "evidence_confidence": 0.9
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.85
+        },
+        {
+          "quote": "- Existing RBAC controls must be preserved.",
+          "section": "2.3",
+          "line_range": "67-67",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.7
+        },
+        {
+          "quote": "Azure AD, RBAC, TLS, Encryption.",
+          "section": "9",
+          "line_range": "281-281",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.6
         }
       ],
-      "confidence": 0.93
+      "confidence": 0.88
     },
     {
       "guideline_domain": "resilience",
       "guideline_version": "v1",
-      "status": "NON_CONFORM",
+      "status": "PARTIAL",
       "severity": "HIGH",
-      "finding": "The Resilience section fails multiple mandatory requirements. There is no stated availability/latency SLA/SLO for the externally consumed REST API, no incident runbook, no defined backups or RTO/RPO for the profile store, no description of redundancy/failover or single points of failure, and no monitoring/alerting coverage. Only autoscaling and on-call ownership are addressed; the core MUST-level Availability Targets, Disaster Recovery, Redundancy & Failover, and Monitoring requirements are unmet.",
-      "reasoning": "The guideline mandates (MUST) availability/latency targets with an owner for each externally consumed service, defined backups, and stated RTO/RPO for critical data and services. The section explicitly states there is no documented SLA and that backups and RTO/RPO for the profile store are not described, directly violating the Availability Targets and Disaster Recovery requirements (matching Examples B and C, both HIGH severity). The text also omits any mention of redundancy/failover, single points of failure, or monitoring/alerting, which are MUST-level requirements. On the positive side, autoscaling is described (SHOULD) and on-call ownership exists (SHOULD), but the absent incident runbook leaves Incident Response only partially met. Because multiple MUST requirements are unmet, the overall status is NON_CONFORM at HIGH severity.",
+      "finding": "Availability, recovery objectives, retry, replication, and per-layer failover are well stated, but there is no documented, testable disaster-recovery procedure tying the replication mechanisms to the stated RTO/RPO, and monitoring/alerting and graceful-degradation behavior are absent. The 'Zero data loss' RPO is asserted without an explicitly identified mechanism guaranteeing it, and the risk log records no resilience/DR risks despite a P1 asset.",
+      "reasoning": "The guideline's Availability and Recovery Objectives requirements are met: an SLA (99.9%) and explicit RTO (30 minutes) and RPO (Zero data loss) are defined in 2.4. Retry Strategy, Replication, and Failover are addressed per layer in 4.3 (Automatic Retry; Geo Replication; Cross Region Replication; ZRS/GRS; Native HA), which also plausibly underpins recovery. However, the guideline mandates that where zero data loss (RPO=0) is claimed the achieving mechanism MUST be identified \u2014 4.3 lists replication mechanisms but never ties any of them to the zero-loss claim. Critically, the Disaster Recovery requirement (a DR approach that MUST be defined, with restore that MUST be testable and consistent with RTO/RPO) is unmet: no DR runbook, restore test, or escalation procedure appears anywhere in the assigned sections \u2014 Section 9 merely restates 'RTO, RPO, Replication' as a principle and Section 10 records 'No active risks recorded' for a P1 asset. The SHOULD items on Monitoring & Graceful Degradation are also absent. Per Example C, the missing testable DR procedure linking replication to RTO/RPO is a HIGH-severity gap, making the domain PARTIAL.",
       "evidence": [
         {
-          "quote": "There is no documented SLA or incident\nrunbook for the new API yet, and backups and recovery objectives (RTO/RPO) for the\nprofile store are not described.",
-          "section": "Resilience",
-          "line_range": "39-41",
+          "quote": "- Platform Uptime: 99.9%",
+          "section": "2.4 Cross Functional Requirements",
+          "line_range": "88",
           "guideline_domain": "resilience",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-          "evidence_confidence": 0.99
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.97
         },
         {
-          "quote": "The service runs on the shared Kubernetes cluster with autoscaling enabled. On-call\nrotation is handled by the platform team.",
-          "section": "Resilience",
-          "line_range": "38-39",
+          "quote": "- RTO: 30 minutes\n- RPO: Zero data loss\n- MTTR: 2\u20133 hours",
+          "section": "2.4 Cross Functional Requirements",
+          "line_range": "92-94",
           "guideline_domain": "resilience",
           "guideline_version": "v1",
-          "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-          "evidence_confidence": 0.85
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.98
+        },
+        {
+          "quote": "| Dynamics  | Native HA                |\n| ADF       | Automatic Retry          |\n| Azure SQL | Geo Replication          |\n| Snowflake | Cross Region Replication |\n| ADLS      | ZRS / GRS                |",
+          "section": "4.3 Resiliency Design",
+          "line_range": "201-205",
+          "guideline_domain": "resilience",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.95
+        },
+        {
+          "quote": "RTO, RPO, Replication.",
+          "section": "9. Alignment with ISG Architecture Principles",
+          "line_range": "302",
+          "guideline_domain": "resilience",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.6
+        },
+        {
+          "quote": "No active risks recorded.",
+          "section": "10. Risk Profile",
+          "line_range": "322",
+          "guideline_domain": "resilience",
+          "guideline_version": "v1",
+          "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+          "evidence_confidence": 0.7
         }
       ],
-      "confidence": 0.95
+      "confidence": 0.9
     }
   ],
   "evidence": [
     {
-      "quote": "Source systems publish change events to Kafka. A streaming job lands raw events in\nSnowflake, where dbt models transform them into the unified customer profile. A\nseparate nightly batch job reconciles records that arrive late.",
-      "section": "Data Flow",
-      "line_range": "14-17",
+      "quote": "Extract case records from Dataverse.",
+      "section": "4.2 Archival Data Flow",
+      "line_range": "173-173",
       "guideline_domain": "data_movement",
       "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.96
-    },
-    {
-      "quote": "The platform stores\nemail, phone, and address fields, and a nightly export sends selected profile fields\nto the analytics team. Data classification has been discussed but is not yet\ndocumented",
-      "section": "Data Flow",
-      "line_range": "16-19",
-      "guideline_domain": "data_movement",
-      "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.98
-    },
-    {
-      "quote": "there is no defined retention period for raw events or historical\nprofiles.",
-      "section": "Data Flow",
-      "line_range": "19-20",
-      "guideline_domain": "data_movement",
-      "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.97
-    },
-    {
-      "quote": "Data lineage is partially captured through dbt's built-in documentation.",
-      "section": "Data Flow",
-      "line_range": "21",
-      "guideline_domain": "data_movement",
-      "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.9
-    },
-    {
-      "quote": "There is no documented contract or schema\nversioning strategy for the REST API or the export.",
-      "section": "Integration",
-      "line_range": "34-35",
-      "guideline_domain": "data_movement",
-      "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.85
-    },
-    {
-      "quote": "Database credentials are currently stored in application configuration\nfiles and rotated manually each quarter.",
-      "section": "Security",
-      "line_range": "28-30",
-      "guideline_domain": "security",
-      "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.98
-    },
-    {
-      "quote": "Role definitions exist for\n\"reader\" and \"admin\", though the mapping of roles to specific endpoints has not yet\nbeen finalized.",
-      "section": "Security",
-      "line_range": "26-28",
-      "guideline_domain": "security",
-      "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
       "evidence_confidence": 0.95
     },
     {
-      "quote": "All external API calls authenticate via OAuth2 using the corporate identity provider\n(SSO). Service-to-service traffic uses short-lived bearer tokens.",
-      "section": "Security",
-      "line_range": "24-25",
-      "guideline_domain": "security",
+      "quote": "Persist raw data into ADLS Gen2.",
+      "section": "4.2 Archival Data Flow",
+      "line_range": "177-177",
+      "guideline_domain": "data_movement",
       "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.95
+    },
+    {
+      "quote": "Transform data in Databricks.",
+      "section": "4.2 Archival Data Flow",
+      "line_range": "185-185",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.97
+    },
+    {
+      "quote": "Load into Snowflake.",
+      "section": "4.2 Archival Data Flow",
+      "line_range": "189-189",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.95
+    },
+    {
+      "quote": "Purge archived records from Dataverse.",
+      "section": "4.2 Archival Data Flow",
+      "line_range": "193-193",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
       "evidence_confidence": 0.9
     },
     {
-      "quote": "Traffic between\nclients and the API gateway is encrypted using TLS 1.2.",
-      "section": "Security",
-      "line_range": "25-26",
-      "guideline_domain": "security",
+      "quote": "Record audit metadata.",
+      "section": "4.2 Archival Data Flow",
+      "line_range": "181-181",
+      "guideline_domain": "data_movement",
       "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.9
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.8
     },
     {
-      "quote": "There is no documented SLA or incident\nrunbook for the new API yet, and backups and recovery objectives (RTO/RPO) for the\nprofile store are not described.",
-      "section": "Resilience",
-      "line_range": "39-41",
-      "guideline_domain": "resilience",
+      "quote": "Meet YE+7 and 10-year retention requirements.",
+      "section": "2.2 Business Functional Requirements",
+      "line_range": "78-78",
+      "guideline_domain": "data_movement",
       "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
-      "evidence_confidence": 0.99
-    },
-    {
-      "quote": "The service runs on the shared Kubernetes cluster with autoscaling enabled. On-call\nrotation is handled by the platform team.",
-      "section": "Resilience",
-      "line_range": "38-39",
-      "guideline_domain": "resilience",
-      "guideline_version": "v1",
-      "source_hash": "cdb3a614c4c3b3132de80ba16c1a445ac1c30a3886b4173d1d349c0aacb8a25c",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
       "evidence_confidence": 0.85
+    },
+    {
+      "quote": "Dynamics 365\n\n\u2193\n\nADF Pipeline\n\n\u2193\n\nADLS Gen2\n\n\u2193\n\nDatabricks\n\n\u2193\n\nSnowflake\n\n\u2193\n\nPower BI / Power Apps",
+      "section": "4.1 Logical View",
+      "line_range": "157-161",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.9
+    },
+    {
+      "quote": "Retention, Classification, Governance.",
+      "section": "9 Data",
+      "line_range": "201-201",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.55
+    },
+    {
+      "quote": "- Azure AD OAuth2\n- Service Principal Authentication",
+      "section": "4.4",
+      "line_range": "213-214",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.97
+    },
+    {
+      "quote": "- Azure RBAC\n- Snowflake RBAC",
+      "section": "4.4",
+      "line_range": "218-219",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.97
+    },
+    {
+      "quote": "- TLS 1.2+\n- Snowflake Triple Key Encryption",
+      "section": "4.4",
+      "line_range": "223-224",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.9
+    },
+    {
+      "quote": "- Private Endpoints\n- Service Endpoints",
+      "section": "4.4",
+      "line_range": "228-229",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.95
+    },
+    {
+      "quote": "- Azure AD Authentication\n- RBAC Enforcement\n- Read Only Access",
+      "section": "4.5",
+      "line_range": "253-255",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.95
+    },
+    {
+      "quote": "- Azure AD OAuth2\n- Service Principal Authentication\n- TLS 1.2+\n- RBAC Enforcement",
+      "section": "2.4",
+      "line_range": "103-106",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.85
+    },
+    {
+      "quote": "- Existing RBAC controls must be preserved.",
+      "section": "2.3",
+      "line_range": "67-67",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.7
+    },
+    {
+      "quote": "Azure AD, RBAC, TLS, Encryption.",
+      "section": "9",
+      "line_range": "281-281",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.6
+    },
+    {
+      "quote": "- Platform Uptime: 99.9%",
+      "section": "2.4 Cross Functional Requirements",
+      "line_range": "88",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.97
+    },
+    {
+      "quote": "- RTO: 30 minutes\n- RPO: Zero data loss\n- MTTR: 2\u20133 hours",
+      "section": "2.4 Cross Functional Requirements",
+      "line_range": "92-94",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.98
+    },
+    {
+      "quote": "| Dynamics  | Native HA                |\n| ADF       | Automatic Retry          |\n| Azure SQL | Geo Replication          |\n| Snowflake | Cross Region Replication |\n| ADLS      | ZRS / GRS                |",
+      "section": "4.3 Resiliency Design",
+      "line_range": "201-205",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.95
+    },
+    {
+      "quote": "RTO, RPO, Replication.",
+      "section": "9. Alignment with ISG Architecture Principles",
+      "line_range": "302",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.6
+    },
+    {
+      "quote": "No active risks recorded.",
+      "section": "10. Risk Profile",
+      "line_range": "322",
+      "guideline_domain": "resilience",
+      "guideline_version": "v1",
+      "source_hash": "62221e04f015c1176296b0691b2170942c6268f232d66ac47f38abd93e18cb18",
+      "evidence_confidence": 0.7
     }
   ]
 }

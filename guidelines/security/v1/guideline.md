@@ -1,28 +1,33 @@
 # Security Governance Guideline
 
-Evaluate the SAD's security posture against these requirements.
+Evaluate the SAD's security posture across authentication, authorization, encryption, and
+network controls against these requirements.
 
 ## Authentication
-- All externally exposed APIs MUST use an approved authentication method
-  (OAuth2, OIDC, or corporate SSO). API keys alone are not sufficient for
-  user-facing endpoints.
-- Service-to-service calls MUST use short-lived credentials, not static secrets.
+- All externally exposed services and user-facing access MUST use an approved
+  authentication method (OAuth2, OIDC, or corporate SSO / identity provider).
+- API keys or static secrets alone are NOT sufficient for user-facing endpoints.
 
-## Authorization
-- A least-privilege role model MUST be defined, and every endpoint or resource
-  MUST be mapped to the roles permitted to access it.
-- Administrative actions MUST require an elevated role.
+## Service Principals
+- Service-to-service and pipeline authentication MUST use managed identities or service
+  principals, NOT shared user accounts.
+- Service principal credentials MUST be short-lived or managed; static long-lived secrets
+  SHOULD be avoided.
+
+## Authorization & RBAC
+- A least-privilege role model (RBAC) MUST be defined, and access to each system/resource
+  MUST be mapped to the roles permitted to use it.
+- RBAC MUST be enforced consistently across every system in the flow (e.g. both the cloud
+  platform and the data warehouse).
+- Read-only consumers MUST be constrained to read-only roles; administrative actions MUST
+  require an elevated role.
 
 ## Encryption
-- Data MUST be encrypted in transit using TLS 1.2 or higher.
-- Sensitive data MUST be encrypted at rest.
+- Data in transit MUST be encrypted using TLS 1.2 or higher.
+- Data at rest MUST be encrypted in every store that holds it (staging and warehouse).
 
-## Secrets Management
-- Secrets (database credentials, API keys, tokens) MUST be stored in an approved
-  secrets vault (e.g., HashiCorp Vault, cloud KMS/Secrets Manager), never in source
-  code or plain configuration files.
-- Automated rotation is required for high-value secrets.
-
-## Network Security
+## Network Controls & Private Endpoints
 - Network access to data stores MUST be restricted to known services.
-- Public exposure of internal services is prohibited unless explicitly approved.
+- Private endpoints / service endpoints SHOULD be used so traffic does not traverse the
+  public internet; public exposure of internal services is prohibited unless explicitly
+  approved.

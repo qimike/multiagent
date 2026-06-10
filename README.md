@@ -3,7 +3,7 @@
 Evaluates a **Solution Architecture Document (SAD)** in Markdown against versioned
 governance guidelines and produces an evidence-backed, auditable assessment. The
 execution model is **Claude SDK native sub-agents**; only deterministic work (hashing,
-caching) stays in Python — **section ownership is decided by Claude, not Python**.
+caching, file read/write) stays in Python — **everything else is model-driven**.
 
 ## Pipeline
 
@@ -12,34 +12,45 @@ source.md
   → SHA256 (source_hash)
   → cache check            (key = source_hash + guideline_version)
   → Claude native orchestrator query()  (delegates via the Agent tool)
-       → section-assignment sub-agent  (semantically assigns sections to domains)
+       → Governance Context Agent   (reads the SAD, extracts per-domain context)
        → Data Movement / Security / Resilience sub-agents
        → Synthesis sub-agent
   → results/<doc>.json
 ```
 
-Python is a thin deterministic pre-processor (hash + cache only); the **orchestrator
-agent** routes to sub-agents, the **section-assignment agent** decides ownership, and the
-domain sub-agents do the evaluation. The orchestrator never evaluates the SAD itself and
-never assigns sections.
+Python is a thin deterministic pre-processor (hash + cache + file I/O only); the
+**orchestrator agent** manages the workflow, the **Governance Context Agent** does section
+understanding and content extraction, the domain sub-agents evaluate, and synthesis
+aggregates. The orchestrator never evaluates the SAD itself.
 
-## Semantic section assignment (Claude, not Python)
+## Governance Context Agent (Claude, not Python)
 
-There is **no heading regex and no routing map** anywhere in Python. The
-`section-assignment` Claude native agent reads the entire SAD, understands the purpose of
-each section, and returns which domain(s) should evaluate it:
+There is **no heading regex, routing map, or deterministic section-routing stage** anywhere
+in Python. The `governance-context` Claude native agent is the first AI agent after the
+cache check. It reads the entire SAD, understands the purpose of each section, and
+**extracts the relevant content** for each domain — returning both the `section_header` and
+the `content` so no downstream extraction stage is needed:
 
 ```json
 {
-  "data_movement": ["2.2", "4.1", "4.2", "9"],
-  "security":      ["2.4", "4.4", "4.5", "9"],
-  "resilience":    ["2.4", "4.3", "9", "10"]
+  "data_movement_context": [
+    { "section_header": "4.2 Archival Data Flow", "content": "Extract case records from Dataverse … Load into Snowflake …" }
+  ],
+  "security_context": [
+    { "section_header": "4.4 Security View – Dataverse to Snowflake", "content": "Azure AD OAuth2 … Snowflake RBAC … TLS 1.2+ …" }
+  ],
+  "resilience_context": [
+    { "section_header": "4.3 Resiliency Design", "content": "ADF Automatic Retry … Snowflake Cross Region Replication …" }
+  ]
 }
 ```
 
-A section may belong to **multiple** domains, or to **none** (purely contextual sections
-are omitted). Domain sub-agents only evaluate the sections assigned to them — they do
-**not** discover sections or decide ownership.
+A section may contribute to **multiple** domains, or to **none** (purely informational
+sections like the executive summary are omitted). The Governance Context Agent does NOT
+invoke other agents or route work — it only returns extracted context. The **orchestrator**
+then invokes a domain evaluator for each non-empty context (prompt-driven routing, no
+Python `if/else`). Domain sub-agents evaluate solely the context handed to them — they do
+**not** discover sections or search for evidence.
 
 ## SHA256 + caching
 
@@ -69,16 +80,18 @@ each sub-agent loads them at runtime via `get_guideline(domain, version)`.
 | Tool | Purpose |
 |------|---------|
 | `get_guideline(domain, version)` | Load the versioned guideline **and** examples |
-| `find_evidence(markdown_document, query)` | **Optional** BM25 helper to locate text/line numbers — evaluators are **not required** to call it |
 
-A single in-process MCP server is shared by all agents (no per-domain server).
+`get_guideline` is the **only** governance MCP tool. It abstracts away where guidelines
+physically live (local folders, Git, SharePoint, Confluence, DocuFind, …) so agents never
+need to know the storage location. A single in-process MCP server is shared by all agents
+(no per-domain server).
 
 ## Evidence model & provenance
 
-Evidence is generated **directly during evaluation** and every `quote` is an **exact,
-verbatim** substring of the SAD (never paraphrased). Each evaluator keeps **finding**
-(the conclusion), **reasoning** (why the evidence satisfies/violates the guideline), and
-**evidence** (the exact quotes) distinct. `find_evidence` is only an optional helper.
+Evidence is generated **directly during evaluation** from the extracted domain context, and
+every `quote` is an **exact, verbatim** substring of that content (never paraphrased). Each
+evaluator keeps **finding** (the conclusion), **reasoning** (why the evidence
+satisfies/violates the guideline), and **evidence** (the exact quotes) distinct.
 
 Every evidence item carries full **provenance** for auditability/reproducibility:
 `section`, `line_range`, `guideline_domain`, `guideline_version`, `source_hash`, plus an
@@ -127,9 +140,9 @@ bad enum values) fails loudly with a non-zero exit instead of shipping silently.
 ## Adding / configuring domains
 
 `domains.py` is the **single source of truth** (`DOMAIN_CONFIG`): each domain's display
-name, evaluator model, and a short `scope` description (handed to the section-assignment
-agent so it can reason about ownership) live there, and `agents.py` and `schema.py` derive
-from it. To add a domain (API, Cost, Cloud, …), add an entry to `DOMAIN_CONFIG` plus
+name, evaluator model, and a short `scope` description (handed to the Governance Context
+Agent so it can identify relevant content) live there, and `agents.py` and `schema.py`
+derive from it. To add a domain (API, Cost, Cloud, …), add an entry to `DOMAIN_CONFIG` plus
 `guidelines/<domain>/<version>/` — no other code changes.
 
 ## Project layout
@@ -138,9 +151,8 @@ from it. To add a domain (API, Cost, Cloud, …), add an entry to `DOMAIN_CONFIG
     guidelines/<domain>/<version>/          # guideline.md + examples.md (governance content)
     .claude/skills/governance-evaluation/   # behavior-only skill
     domains.py                              # DOMAIN_CONFIG — single source of truth (name/model/scope)
-    parser.py                               # structural Markdown splitter (line-number helper only — no ownership)
-    tools.py                                # shared MCP server: get_guideline, find_evidence (optional locator)
-    agents.py                               # sub-agent AgentDefinitions (section-assignment, evaluators, synthesis) + orchestrator prompt
+    tools.py                                # shared MCP server: get_guideline (the only governance tool)
+    agents.py                               # sub-agent AgentDefinitions (governance-context, evaluators, synthesis) + orchestrator prompt
     schema.py                               # output shapes + Pydantic validation
     main_orchestrator.py                    # hashing, caching, launches the native orchestrator
     results/<doc>.json                      # final assessment (cache + audit record)

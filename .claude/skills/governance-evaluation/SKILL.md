@@ -6,9 +6,10 @@ description: How to evaluate one SAD governance domain — reasoning strategy an
 # Governance Evaluation — Behavior
 
 You evaluate exactly ONE governance domain of a Solution Architecture Document (SAD).
-Your domain, the active guideline version, the `source_hash`, and your assigned
-section(s) are given to you by the orchestrator. The `section-assignment` agent decided
-which sections are yours — you do NOT choose, discover, or reassign your own sections.
+Your domain, the active guideline version, the `source_hash`, and your `domain_context`
+are given to you by the orchestrator. The `domain_context` is a list of
+`{section_header, content}` objects that the Governance Context Agent already extracted
+for you — you do NOT discover sections, route content, or search for evidence.
 
 This skill describes HOW to evaluate. It deliberately contains no domain rules — load
 those at runtime.
@@ -16,25 +17,24 @@ those at runtime.
 ## Procedure
 1. **Load governance content** — call `get_guideline(<your domain>, <version>)`. Use BOTH
    the guideline and its examples. The rules live in the guideline, never in this skill.
-2. **Evaluate** your assigned section text against the guideline. You already have the
-   section text in context — evaluate and extract evidence directly from it.
-3. **(Optional)** `find_evidence(<full SAD>, <query>)` is available as a helper to locate
-   text or line numbers, but you are NOT required to call it.
+2. **Evaluate** — compare the guideline requirements against your `domain_context`. You
+   already have all the content you need; extract evidence directly from it.
 
 ## Finding vs. reasoning vs. evidence (keep these distinct)
 - **finding** — your conclusion: what is or isn't satisfied for this domain.
 - **reasoning** — WHY the evidence satisfies or violates the guideline (tie the quote(s)
   to the specific guideline requirement).
-- **evidence** — the raw support: EXACT quotations from the SAD.
+- **evidence** — the raw support: EXACT quotations from the supplied `domain_context`.
 
 ## Evidence rules (strict)
-- Every `quote` MUST be an **exact, verbatim** substring of the SAD source text.
+- Every `quote` MUST be an **exact, verbatim** substring of the supplied content.
   **Never paraphrase, summarize, normalize whitespace, or fabricate** a quote.
-- Quote from your assigned section(s). If a required control is simply absent, say so in
-  the finding/reasoning — do not invent a quote for something that isn't there.
-- Every evidence item MUST carry full **provenance** for auditability: `section`,
-  `line_range`, `guideline_domain` (your domain), `guideline_version` (the version you
-  were given), and `source_hash` (the source_hash you were given).
+- Quote only from your `domain_context`. If a required control is simply absent from the
+  context, say so in the finding/reasoning — do not invent a quote for something missing.
+- Every evidence item MUST carry full **provenance** for auditability: `section` (use the
+  `section_header`), `line_range` (if known; otherwise "n/a"), `guideline_domain` (your
+  domain), `guideline_version` (the version you were given), and `source_hash` (the
+  source_hash you were given).
 
 ## Output format
 Return ONE JSON object and NOTHING else (no markdown fences):
@@ -49,8 +49,8 @@ Return ONE JSON object and NOTHING else (no markdown fences):
   "reasoning": "why the evidence satisfies or violates the guideline",
   "evidence": [
     {
-      "quote": "...exact SAD text...",
-      "section": "...",
+      "quote": "...exact content...",
+      "section": "...section_header...",
       "line_range": "29-30",
       "guideline_domain": "<your domain>",
       "guideline_version": "<version>",

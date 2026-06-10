@@ -40,7 +40,6 @@ py-modules = [
     "main_orchestrator",
     "agents",
     "domains",
-    "parser",
     "schema",
     "tools",
 ]

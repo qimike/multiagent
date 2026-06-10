@@ -5,11 +5,7 @@
 | Field             | Value                               |
 | ----------------- | ----------------------------------- |
 | Business Function | Case Management (Dynamics Platform) |
-| Business Owner    | Aretha Levine                       |
-| ITSO              | Barry Roy                           |
-| Cloud Captain     | Ashish Depankaj                     |
-| Super Department  | Operations Technology               |
-| Ecosystem Name(s) | MS Bullet, Snowflake                |
+
 
 ---
 
@@ -257,21 +253,13 @@ Snowflake
 ---
 
 # 6. Related ADRs
+None
 
-| ADR          | Description                   |
-| ------------ | ----------------------------- |
-| ADR-D365-001 | Long Term Retention Strategy  |
-| ADR-D365-002 | Snowflake Platform Decision   |
-| ADR-D365-003 | Data Movement Pipeline Design |
 
 ---
 
 # 7. Related Cloud Pipelines
-
-| Name                        | Pipeline ID   |
-| --------------------------- | ------------- |
-| Dynamics Snowflake Archival | PIPELINE-1786 |
-| Dynamics MS Bullet          | PIPELINE-380  |
+None
 
 ---
 

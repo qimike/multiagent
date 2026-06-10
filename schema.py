@@ -27,13 +27,34 @@ SEVERITY_VALUES = ("LOW", "MEDIUM", "HIGH")
 # ---------------------------------------------------------------------------
 # Example shapes (injected into prompts)
 # ---------------------------------------------------------------------------
-# Section-assignment agent output: domain key -> list of section identifiers it owns.
-# Keys are derived from DOMAINS so the shape always matches the configured domains.
-# The section identifiers below are illustrative only — Claude decides ownership.
-SECTION_ASSIGNMENT_EXAMPLE: dict[str, list[str]] = {
-    "data_movement": ["2.2", "2.3", "4.1", "4.2", "9"],
-    "security": ["2.4", "4.4", "4.5", "9"],
-    "resilience": ["2.4", "4.3", "9", "10"],
+# Governance Context Agent output: per-domain extracted context. Each domain maps to a list
+# of {section_header, content} objects — the agent both understands sections AND extracts
+# their content, so no downstream extraction stage is needed. A section may appear
+# under multiple domains; purely informational sections are omitted. The values below are
+# illustrative only — Claude decides relevance and does the extraction.
+GOVERNANCE_CONTEXT_EXAMPLE: dict[str, list[dict[str, str]]] = {
+    "data_movement_context": [
+        {
+            "section_header": "4.2 Archival Data Flow",
+            "content": "Extract case records from Dataverse … Persist raw data into ADLS "
+            "Gen2 … Transform data in Databricks … Load into Snowflake … Purge archived "
+            "records from Dataverse.",
+        }
+    ],
+    "security_context": [
+        {
+            "section_header": "4.4 Security View – Dataverse to Snowflake",
+            "content": "Azure AD OAuth2 … Service Principal Authentication … Azure RBAC … "
+            "Snowflake RBAC … TLS 1.2+ … Private Endpoints.",
+        }
+    ],
+    "resilience_context": [
+        {
+            "section_header": "4.3 Resiliency Design",
+            "content": "ADF Automatic Retry … Azure SQL Geo Replication … Snowflake Cross "
+            "Region Replication … ADLS ZRS / GRS.",
+        }
+    ],
 }
 
 _EVIDENCE_EXAMPLE: dict[str, Any] = {

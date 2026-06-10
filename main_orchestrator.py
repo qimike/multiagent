@@ -5,13 +5,14 @@ Pipeline:
       -> SHA256 (source_hash)
       -> cache check (key = source_hash + guideline_version)
       -> Claude native orchestrator query()  (delegates via the Agent tool)
-           -> section-assignment sub-agent  (semantically assigns sections to domains)
+           -> Governance Context Agent  (reads the SAD, extracts per-domain context)
            -> domain sub-agents (Data Movement / Security / Resilience)
            -> synthesis sub-agent
       -> results/<doc>.json
 
-Only the deterministic parts (hashing, caching) stay in Python. Section ownership and all
-agent routing/orchestration are done by Claude native agents, NOT by Python.
+Only the deterministic parts (hashing, caching, file read/write) stay in Python. Section
+understanding, content extraction, relevance, evaluation, and all agent routing are done by
+Claude native agents, NOT by Python.
 
 Run (the SAD document path is REQUIRED — exactly one document per execution):
     export ANTHROPIC_API_KEY=sk-ant-...
@@ -75,10 +76,10 @@ async def evaluate_sad(doc_path: Path, force: bool = False) -> dict | str:
             return cached
 
     print(f"  source_hash: {source_hash[:12]}  guideline_version: {version}")
-    print("  section ownership: decided by the section-assignment agent (Claude)")
+    print("  context extraction + evaluation: decided by Claude native agents")
 
-    # 2) Claude native orchestrator (it delegates to the sub-agents, including the
-    #    section-assignment agent that decides ownership)
+    # 2) Claude native orchestrator (it delegates to the sub-agents, starting with the
+    #    Governance Context Agent that extracts per-domain context)
     options = ClaudeAgentOptions(
         system_prompt=build_orchestrator_prompt(
             doc_path.relative_to(ROOT).as_posix(),

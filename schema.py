@@ -59,7 +59,7 @@ GOVERNANCE_CONTEXT_EXAMPLE: dict[str, list[dict[str, str]]] = {
 
 _EVIDENCE_EXAMPLE: dict[str, Any] = {
     "quote": "Database credentials are currently stored in application configuration files and rotated manually each quarter.",
-    "section": "Security",
+    "section_header": "2.4 Cross Functional Requirements",
     "line_range": "29-30",
     "guideline_domain": "security",
     "guideline_version": "v1",
@@ -98,7 +98,7 @@ FINAL_OUTPUT_EXAMPLE: dict[str, Any] = {
 class EvidenceItem(BaseModel):
     model_config = ConfigDict(extra="allow")  # tolerate extra keys, require these
     quote: str
-    section: str
+    section_header: str
     line_range: str
     guideline_domain: str
     guideline_version: str

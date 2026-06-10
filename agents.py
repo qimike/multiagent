@@ -39,8 +39,8 @@ GOVERNANCE_CONTEXT_MODEL = "opus"
 GOVERNANCE_CONTEXT_AGENT = "governance-context"
 
 # Evaluators get the shared MCP guideline tool and the Skill tool (to load the behavior
-# skill). They do NOT get Read or any retrieval/search tool — they only evaluate the
-# domain context handed to them.
+# skill). They do NOT get Read or any search tool — they only evaluate the domain context
+# handed to them, generating evidence directly from that content.
 EVALUATOR_TOOLS = ["Skill", *TOOL_NAMES]
 
 _RESULT_SHAPE = json.dumps(EVALUATOR_RESULT_EXAMPLE, indent=2)
@@ -129,10 +129,11 @@ search for evidence; everything you evaluate is in the domain_context you were g
    - evidence = EXACT, verbatim quotations from the supplied content (never paraphrase,
      never fabricate; if a control is absent from the context, say so in the finding rather
      than inventing a quote).
-4. Every evidence item MUST carry full provenance: section (use the section_header),
-   line_range (if known; otherwise a best effort or "n/a"), guideline_domain ("{ev.key}"),
-   guideline_version, source_hash (the source_hash you were given), and an
-   evidence_confidence (0.0-1.0) for how strongly that quote supports the finding.
+4. Every evidence item MUST carry full provenance: section_header (the section_header from
+   your domain_context), line_range (if known; otherwise a best effort or "n/a"),
+   guideline_domain ("{ev.key}"), guideline_version, source_hash (the source_hash you were
+   given), and an evidence_confidence (0.0-1.0) for how strongly that quote supports the
+   finding.
 5. Return ONE JSON object in this exact shape:
 {_RESULT_SHAPE}"""
 
@@ -158,8 +159,9 @@ Do all of the following:
   reasoning, status, severity, evidence, and confidence exactly as returned).
 - Merge the findings/reasoning across domains and consolidate all evidence into the
   top-level "evidence" array. Each evidence item is an exact quote that MUST keep its full
-  provenance: {{"quote", "section", "line_range", "guideline_domain", "guideline_version",
-  "source_hash"}}. Do NOT paraphrase quotes and do NOT drop any provenance field.
+  provenance: {{"quote", "section_header", "line_range", "guideline_domain",
+  "guideline_version", "source_hash"}}. Do NOT paraphrase quotes and do NOT drop any
+  provenance field.
 - Compute an overall "evaluation_result" (CONFORM | PARTIAL | NON_CONFORM) and overall
   "confidence" from the per-domain results.
 
@@ -225,18 +227,20 @@ Steps:
 2. Delegate to the "{GOVERNANCE_CONTEXT_AGENT}" sub-agent via the Agent tool, passing it the
    FULL SAD text. It returns a JSON object with per-domain extracted context, where each
    domain key maps to a list of {{"section_header", "content"}} objects.
-3. For EACH domain whose context list is NON-EMPTY, delegate to that domain's evaluator
-   sub-agent via the Agent tool. In your message to the evaluator include ONLY: its
-   guideline_version ({version}), the source_hash ({source_hash}), and that domain's
+3. Based on the Governance Context output, delegate evaluation to the relevant evaluator
+   agents: for each domain context that contains extracted content, invoke that domain's
+   evaluator sub-agent via the Agent tool. In your message to the evaluator include ONLY:
+   its guideline_version ({version}), the source_hash ({source_hash}), and that domain's
    extracted context (the list of {{section_header, content}} objects). Do NOT send the full
-   SAD — the evaluators work solely from the extracted context. Skip any domain whose
-   context list is empty. Sub-agents must NOT talk to each other.
+   SAD — the evaluators work solely from the extracted context. A domain context with no
+   content needs no evaluator. Sub-agents must NOT talk to each other.
 4. Collect the evaluator JSON results yourself.
 5. Delegate to the "synthesis" sub-agent, passing the collected evaluator results plus
    source_file ("{doc_rel.split('/')[-1]}"), source_hash ({source_hash}), and
    guideline_version ({version}), to produce the final assessment.
 6. Write the synthesis output verbatim to {out_rel} using the Write tool.
 
-Routing is your job and is prompt-driven: invoke an evaluator exactly when its context key
-is present and non-empty. Do not load guidelines yourself — the evaluators do that via
-get_guideline. Do not extract content yourself — the Governance Context Agent does that."""
+Delegation is your job: reason over the Governance Context output and invoke the evaluator
+agents whose domains have extracted content. Do not load guidelines yourself — the
+evaluators do that via get_guideline. Do not extract content yourself — the Governance
+Context Agent does that."""

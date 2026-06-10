@@ -31,10 +31,10 @@ those at runtime.
   **Never paraphrase, summarize, normalize whitespace, or fabricate** a quote.
 - Quote only from your `domain_context`. If a required control is simply absent from the
   context, say so in the finding/reasoning — do not invent a quote for something missing.
-- Every evidence item MUST carry full **provenance** for auditability: `section` (use the
-  `section_header`), `line_range` (if known; otherwise "n/a"), `guideline_domain` (your
-  domain), `guideline_version` (the version you were given), and `source_hash` (the
-  source_hash you were given).
+- Every evidence item MUST carry full **provenance** for auditability: `section_header`
+  (the `section_header` from your `domain_context`), `line_range` (if known; otherwise
+  "n/a"), `guideline_domain` (your domain), `guideline_version` (the version you were
+  given), and `source_hash` (the source_hash you were given).
 
 ## Output format
 Return ONE JSON object and NOTHING else (no markdown fences):
@@ -50,7 +50,7 @@ Return ONE JSON object and NOTHING else (no markdown fences):
   "evidence": [
     {
       "quote": "...exact content...",
-      "section": "...section_header...",
+      "section_header": "4.4 Security View",
       "line_range": "29-30",
       "guideline_domain": "<your domain>",
       "guideline_version": "<version>",

@@ -3,28 +3,19 @@
   "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
   "guideline_version": "v1",
   "evaluation_result": "PARTIAL",
-  "confidence": 0.87,
+  "confidence": 0.88,
   "evaluations": [
     {
       "guideline_domain": "data_movement",
       "guideline_version": "v1",
       "status": "PARTIAL",
       "severity": "MEDIUM",
-      "finding": "Source and target systems, the end-to-end data flow, transformation platform, lineage capture, and the archival/source-purge process are all well specified. However, two gaps remain: (1) retention is stated only as a business goal (YE+7 / 10-year) and is not bound to specific raw (ADLS Gen2) vs. derived (Snowflake) data tiers within the data-movement design, and the source purge step (Step 7) is not explicitly gated on that retention period; and (2) data quality / reconciliation between source and target (late-arriving/duplicate handling, reconciliation frequency and ownership) is not described anywhere in the supplied context.",
-      "reasoning": "Source & Target Systems are met: Dynamics 365/Dataverse is named as the source and Snowflake as the analytical/archival target, with ADLS Gen2 and Databricks as intermediate stages. Data Flow is met: the Archival Data Flow gives an ordered, reproducible extract \u2192 stage \u2192 transform \u2192 load sequence, and the movement mechanism (ADF pipeline) is identified. Transformation is met and raw vs. transformed data is distinguishable ('Persist raw data into ADLS Gen2' vs. 'Transform data in Databricks'). Lineage is met via 'Record audit metadata' at a stage. Archival Process is partly met: what is archived, where it lands, and the source purge are all stated ('Purge archived records from Dataverse'), but the guideline requires the purge to be explicit and consistent with retention, and the retention requirement (YE+7 / 10-year) is expressed only as a business/cross-functional goal rather than a defined retention period attached to raw and derived data in the movement design, with no linkage gating the purge \u2014 matching the partial pattern in Example C and the caution in Example B. Data Quality & Reconciliation (SHOULD) is entirely absent from the context, which is a gap to flag.",
+      "finding": "Source/target systems, the end-to-end data flow, and transformation are well specified and conformant: Dynamics 365/Dataverse is the named source, ADLS Gen2 and Snowflake are named targets, the ADF pipeline movement mechanism is identified, the archival flow is an ordered reproducible sequence, and Databricks is named as the transformation platform. However, gaps remain: (1) retention is stated only as business goals/policies (YE+7, 10-year) and is NOT defined distinctly for raw (ADLS Gen2) versus derived/historical (Snowflake) data within the data-movement design; (2) the source purge from Dataverse is the last step but is not explicitly gated on the stated retention period, so purge-vs-retention consistency is not demonstrated; (3) lineage is only partially evidenced via a single audit-metadata step rather than end-to-end lineage capture at each stage; and (4) data quality/reconciliation (late-arriving/duplicate handling and source-to-target reconciliation frequency/ownership) is absent from the context.",
+      "reasoning": "Source & Target Systems and Data Flow requirements are satisfied because the context explicitly names the system of record (Dataverse/Dynamics 365), the archival/analytical destinations (ADLS Gen2, Snowflake), the movement mechanism (ADF Pipeline), and an ordered extract -> stage -> transform -> load sequence, matching Example A. The Transformation requirement is met because the transform step and its platform (Databricks) are stated, and raw (ADLS Gen2) vs transformed (Snowflake) data are distinguishable. The Lineage requirement is only partially met: 'Record audit metadata' shows audit/metadata capture at one stage but does not describe end-to-end lineage at each stage, so partial lineage should be flagged per the guideline. The Retention requirement is under-specified exactly as in Example C: YE+7/10-year and 'Retention policies enforced' appear as business/cross-functional goals but no retention period is defined separately for raw vs derived data inside the design. The Archival Process names what is archived, where it lands, and that the source is purged ('Purge archived records from Dataverse'), but per Example B the purge should be gated on a stated retention period, and no such gating is shown, so deletion-vs-retention consistency is unproven. Data Quality & Reconciliation controls (SHOULD) are entirely absent from the supplied context.",
       "evidence": [
         {
-          "quote": "Step 1: Retrieve archival configuration. Step 2: Extract case records from Dataverse. Step 3: Persist raw data into ADLS Gen2. Step 4: Record audit metadata. Step 5: Transform data in Databricks. Step 6: Load into Snowflake. Step 7: Purge archived records from Dataverse.",
-          "section": "4.2 Archival Data Flow",
-          "line_range": "n/a",
-          "guideline_domain": "data_movement",
-          "guideline_version": "v1",
-          "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.97
-        },
-        {
-          "quote": "Dynamics 365 \u2192 ADF Pipeline \u2192 ADLS Gen2 \u2192 Databricks \u2192 Snowflake \u2192 Power BI / Power Apps",
-          "section": "4.1 Logical View",
+          "quote": "Dynamics 365 \u2193 ADF Pipeline \u2193 ADLS Gen2 \u2193 Databricks \u2193 Snowflake \u2193 Power BI / Power Apps",
+          "section_header": "4.1 Logical View",
           "line_range": "n/a",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
@@ -32,26 +23,44 @@
           "evidence_confidence": 0.95
         },
         {
-          "quote": "This SAD describes the integration of Dynamics 365 with Snowflake as an archival and reporting destination using Azure Data Factory and MS Bullet pipelines.",
-          "section": "1.1 Overview",
+          "quote": "Step 1: Retrieve archival configuration. Step 2: Extract case records from Dataverse. Step 3: Persist raw data into ADLS Gen2. Step 4: Record audit metadata. Step 5: Transform data in Databricks. Step 6: Load into Snowflake. Step 7: Purge archived records from Dataverse.",
+          "section_header": "4.2 Archival Data Flow",
           "line_range": "n/a",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
           "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.9
-        },
-        {
-          "quote": "Meet YE+7 and 10-year retention requirements. Support analytical reporting without impacting production.",
-          "section": "2.2 Business Functional Requirements",
-          "line_range": "n/a",
-          "guideline_domain": "data_movement",
-          "guideline_version": "v1",
-          "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.85
+          "evidence_confidence": 0.97
         },
         {
           "quote": "Data Protection: PII and MNPI supported; Retention policies enforced.",
-          "section": "2.4 Cross Functional Requirements",
+          "section_header": "2.4 Cross Functional Requirements",
+          "line_range": "n/a",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+          "evidence_confidence": 0.7
+        },
+        {
+          "quote": "Meet YE+7 and 10-year retention requirements.",
+          "section_header": "2.2 Business Functional Requirements",
+          "line_range": "n/a",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+          "evidence_confidence": 0.75
+        },
+        {
+          "quote": "No systematic archival process exists.",
+          "section_header": "3.1 Existing Integration Patterns",
+          "line_range": "n/a",
+          "guideline_domain": "data_movement",
+          "guideline_version": "v1",
+          "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+          "evidence_confidence": 0.55
+        },
+        {
+          "quote": "Long Term Retention \u2014 Selected: ADF + Snowflake Pipeline; Reason: Improved reporting and retention capability.",
+          "section_header": "A1 Key Architecture Decisions",
           "line_range": "n/a",
           "guideline_domain": "data_movement",
           "guideline_version": "v1",
@@ -66,12 +75,12 @@
       "guideline_version": "v1",
       "status": "PARTIAL",
       "severity": "MEDIUM",
-      "finding": "Authentication, authorization/RBAC, encryption in transit, and network controls for the Dataverse-to-Snowflake path conform to the guideline (Azure AD OAuth2, Service Principal Authentication, Azure + Snowflake RBAC with read-only consumer access, TLS 1.2+, and Private/Service Endpoints). However, encryption at rest is only confirmed for the Snowflake warehouse via Triple Key Encryption; it is not stated for any staging/intermediate store in the flow, and the Power Apps access path through the Power Platform Gateway documents no private/service endpoint, so encryption-at-rest coverage and network restriction for that path are under-specified.",
-      "reasoning": "Authentication requirements are met because 'Azure AD OAuth2' and 'Service Principal Authentication' are approved methods for user-facing and service-to-service auth (Example A). RBAC is enforced consistently across both the cloud platform and the warehouse via 'Azure RBAC; Snowflake RBAC', and read-only consumers are constrained by 'Read Only Access' (Example B). Encryption in transit is satisfied by 'TLS 1.2+', and 'Private Endpoints; Service Endpoints' satisfy network controls for the Dataverse-to-Snowflake path (Example C). The Encryption guideline requires data at rest to be encrypted in EVERY store that holds it (staging and warehouse); only 'Snowflake Triple Key Encryption' is quoted, which covers the warehouse but not any staging layer \u2014 the exact gap illustrated in Example D, which is MEDIUM. Additionally, the Power Apps path's controls quote no private/service endpoint, leaving network restriction for that path under-specified. Service principal credential management (short-lived/managed) is also not documented, though static-secret avoidance is a SHOULD, not a MUST.",
+      "finding": "Authentication, service principals, RBAC, in-transit encryption, and network controls are all satisfied. The only gap is encryption at rest: it is confirmed for the Snowflake warehouse via Triple Key Encryption, but encryption at rest is not stated for any intermediate/staging store in the Dataverse-to-Snowflake flow, so the 'every store that holds data' requirement is not fully demonstrated.",
+      "reasoning": "Authentication requires an approved method (OAuth2/OIDC/SSO) and 'Azure AD OAuth2' satisfies it; Service Principals require service-to-service auth via SPs/managed identities and 'Service Principal Authentication' satisfies it. RBAC must be enforced across every system and read-only consumers constrained \u2014 'Azure RBAC; Snowflake RBAC' covers both the cloud platform and the warehouse, 'Read Only Access' constrains the consumer, and 'Existing RBAC controls must be preserved' reinforces this. In-transit encryption requires TLS 1.2+, met by 'TLS 1.2+'. Network controls require private/service endpoints, met by 'Private Endpoints; Service Endpoints'. However, the Encryption requirement states data at rest MUST be encrypted in EVERY store (staging and warehouse); the context only evidences 'Snowflake Triple Key Encryption' for the warehouse, with no quote covering encryption at rest for any staging layer in the Dataverse-to-Snowflake flow \u2014 this matches Example D (under-specified control = PARTIAL, MEDIUM).",
       "evidence": [
         {
           "quote": "Authentication: Azure AD OAuth2; Service Principal Authentication.",
-          "section": "4.4 Security View \u2013 Dataverse to Snowflake",
+          "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
           "line_range": "n/a",
           "guideline_domain": "security",
           "guideline_version": "v1",
@@ -80,7 +89,7 @@
         },
         {
           "quote": "Authorization: Azure RBAC; Snowflake RBAC.",
-          "section": "4.4 Security View \u2013 Dataverse to Snowflake",
+          "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
           "line_range": "n/a",
           "guideline_domain": "security",
           "guideline_version": "v1",
@@ -89,25 +98,25 @@
         },
         {
           "quote": "Controls: Azure AD Authentication; RBAC Enforcement; Read Only Access.",
-          "section": "4.5 Security View \u2013 Power Apps Access",
+          "section_header": "4.5 Security View \u2013 Power Apps Access",
           "line_range": "n/a",
           "guideline_domain": "security",
           "guideline_version": "v1",
           "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.9
+          "evidence_confidence": 0.95
+        },
+        {
+          "quote": "Existing RBAC controls must be preserved.",
+          "section_header": "2.3 Architecturally Significant Constraints",
+          "line_range": "n/a",
+          "guideline_domain": "security",
+          "guideline_version": "v1",
+          "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+          "evidence_confidence": 0.8
         },
         {
           "quote": "Encryption: TLS 1.2+; Snowflake Triple Key Encryption.",
-          "section": "4.4 Security View \u2013 Dataverse to Snowflake",
-          "line_range": "n/a",
-          "guideline_domain": "security",
-          "guideline_version": "v1",
-          "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.85
-        },
-        {
-          "quote": "Network: Private Endpoints; Service Endpoints.",
-          "section": "4.4 Security View \u2013 Dataverse to Snowflake",
+          "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
           "line_range": "n/a",
           "guideline_domain": "security",
           "guideline_version": "v1",
@@ -115,13 +124,13 @@
           "evidence_confidence": 0.9
         },
         {
-          "quote": "User Access: Operations User \u2192 Power Apps \u2192 Power Platform Gateway \u2192 Snowflake.",
-          "section": "4.5 Security View \u2013 Power Apps Access",
+          "quote": "Network: Private Endpoints; Service Endpoints.",
+          "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
           "line_range": "n/a",
           "guideline_domain": "security",
           "guideline_version": "v1",
           "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.6
+          "evidence_confidence": 0.95
         }
       ],
       "confidence": 0.86
@@ -131,12 +140,12 @@
       "guideline_version": "v1",
       "status": "PARTIAL",
       "severity": "HIGH",
-      "finding": "Availability, recovery objectives, retry, and replication are well covered, but the disaster-recovery requirement is unmet: there is no documented, testable DR procedure tying replication to the stated RTO/RPO, and the zero-data-loss (RPO=0) claim is not explicitly linked to a specific mechanism. Availability target (99.9%) is stated; RTO (30 minutes) and RPO (Zero data loss) are defined; retry is described (ADF Automatic Retry); replication is described across layers (Azure SQL Geo Replication, Snowflake Cross Region Replication, ADLS ZRS/GRS). Failover is partially addressed via Native HA and replication, but no explicit failover behavior, SPOF analysis, DR runbook, restore testability, monitoring/alerting, or graceful-degradation behavior is present in the supplied context.",
-      "reasoning": "The Availability requirement is satisfied by the stated 99.9% uptime target. The Recovery Objectives requirement is satisfied because both RTO (30 minutes) and RPO (Zero data loss) are explicitly defined. The Retry Strategy guidance is met for the ADF stage (Automatic Retry). The Replication MUST is satisfied across critical stores (Azure SQL Geo Replication, Snowflake Cross Region Replication, ADLS ZRS/GRS). However, two MUST-level gaps remain: (1) the guideline requires that where zero data loss is claimed the achieving mechanism MUST be identified \u2014 the replication entries are listed but not explicitly tied to the RPO=Zero claim; (2) the Disaster Recovery requirement (a DR approach that MUST be defined and testable, and consistent with RTO/RPO) is entirely absent from the context \u2014 replication is listed but no DR runbook or restore test is described. Failover behavior and SPOF identification are also not explicitly described beyond Native HA, weakening the Failover MUST. Per Example C, a missing testable DR procedure tying replication to RTO/RPO is a HIGH-severity gap.",
+      "finding": "Availability, recovery objectives (RTO/RPO), and replication are well covered, and the zero-data-loss claim is backed by identified replication mechanisms. However, the mandatory Disaster Recovery requirement is unmet: no documented, testable DR approach (runbook/restore test) is provided to tie replication to the stated RTO/RPO. Failover is only partially addressed (HA noted for Dynamics, but single points of failure are not explicitly identified/addressed across all critical components), retry strategy is minimal (one component, no timeouts/backoff per stage), and monitoring/graceful-degradation behavior is not described.",
+      "reasoning": "The guideline MUSTs for Availability, RTO, RPO, and Replication are satisfied: '99.9%' states an SLA; 'RTO: 30 minutes' and 'RPO: Zero data loss' define both objectives; and because RPO=0 (zero data loss) is claimed, the mechanism is identified via 'Azure SQL: Geo Replication', 'Snowflake: Cross Region Replication', and 'ADLS: ZRS / GRS' (matching Examples A and B). The Retry Strategy SHOULD is only partially met \u2014 only 'ADF: Automatic Retry' is described, with no timeouts/backoff or coverage of other failure-prone stages. Failover is partially addressed: 'Dynamics: Native HA' covers HA for one component, but the guideline's MUST to identify and address single points of failure is not demonstrated for the broader pipeline. The Disaster Recovery MUST ('a DR approach MUST be defined, and restore MUST be testable' and 'consistent with the stated RTO/RPO') is violated \u2014 the context lists replication but contains no DR runbook or testable restore, which is exactly the HIGH-severity gap in Example C. Monitoring/graceful-degradation SHOULDs are also absent from the context.",
       "evidence": [
         {
-          "quote": "Availability: Platform Uptime 99.9%. Reliability: RTO 30 minutes; RPO Zero data loss; MTTR 2\u20133 hours.",
-          "section": "2.4 Cross Functional Requirements",
+          "quote": "Availability: Platform Uptime: 99.9%. Reliability: RTO: 30 minutes; RPO: Zero data loss; MTTR: 2\u20133 hours.",
+          "section_header": "2.4 Cross Functional Requirements",
           "line_range": "n/a",
           "guideline_domain": "resilience",
           "guideline_version": "v1",
@@ -145,39 +154,30 @@
         },
         {
           "quote": "Dynamics: Native HA. ADF: Automatic Retry. Azure SQL: Geo Replication. Snowflake: Cross Region Replication. ADLS: ZRS / GRS.",
-          "section": "4.3 Resiliency Design",
+          "section_header": "4.3 Resiliency Design",
           "line_range": "n/a",
           "guideline_domain": "resilience",
           "guideline_version": "v1",
           "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.92
+          "evidence_confidence": 0.9
         },
         {
           "quote": "Reliability: RTO, RPO, Replication.",
-          "section": "9. Alignment with ISG Architecture Principles",
+          "section_header": "9. Alignment with ISG Architecture Principles",
           "line_range": "n/a",
           "guideline_domain": "resilience",
           "guideline_version": "v1",
           "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-          "evidence_confidence": 0.5
+          "evidence_confidence": 0.4
         }
       ],
-      "confidence": 0.88
+      "confidence": 0.9
     }
   ],
   "evidence": [
     {
-      "quote": "Step 1: Retrieve archival configuration. Step 2: Extract case records from Dataverse. Step 3: Persist raw data into ADLS Gen2. Step 4: Record audit metadata. Step 5: Transform data in Databricks. Step 6: Load into Snowflake. Step 7: Purge archived records from Dataverse.",
-      "section": "4.2 Archival Data Flow",
-      "line_range": "n/a",
-      "guideline_domain": "data_movement",
-      "guideline_version": "v1",
-      "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.97
-    },
-    {
-      "quote": "Dynamics 365 \u2192 ADF Pipeline \u2192 ADLS Gen2 \u2192 Databricks \u2192 Snowflake \u2192 Power BI / Power Apps",
-      "section": "4.1 Logical View",
+      "quote": "Dynamics 365 \u2193 ADF Pipeline \u2193 ADLS Gen2 \u2193 Databricks \u2193 Snowflake \u2193 Power BI / Power Apps",
+      "section_header": "4.1 Logical View",
       "line_range": "n/a",
       "guideline_domain": "data_movement",
       "guideline_version": "v1",
@@ -185,26 +185,44 @@
       "evidence_confidence": 0.95
     },
     {
-      "quote": "This SAD describes the integration of Dynamics 365 with Snowflake as an archival and reporting destination using Azure Data Factory and MS Bullet pipelines.",
-      "section": "1.1 Overview",
+      "quote": "Step 1: Retrieve archival configuration. Step 2: Extract case records from Dataverse. Step 3: Persist raw data into ADLS Gen2. Step 4: Record audit metadata. Step 5: Transform data in Databricks. Step 6: Load into Snowflake. Step 7: Purge archived records from Dataverse.",
+      "section_header": "4.2 Archival Data Flow",
       "line_range": "n/a",
       "guideline_domain": "data_movement",
       "guideline_version": "v1",
       "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.9
-    },
-    {
-      "quote": "Meet YE+7 and 10-year retention requirements. Support analytical reporting without impacting production.",
-      "section": "2.2 Business Functional Requirements",
-      "line_range": "n/a",
-      "guideline_domain": "data_movement",
-      "guideline_version": "v1",
-      "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.85
+      "evidence_confidence": 0.97
     },
     {
       "quote": "Data Protection: PII and MNPI supported; Retention policies enforced.",
-      "section": "2.4 Cross Functional Requirements",
+      "section_header": "2.4 Cross Functional Requirements",
+      "line_range": "n/a",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+      "evidence_confidence": 0.7
+    },
+    {
+      "quote": "Meet YE+7 and 10-year retention requirements.",
+      "section_header": "2.2 Business Functional Requirements",
+      "line_range": "n/a",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+      "evidence_confidence": 0.75
+    },
+    {
+      "quote": "No systematic archival process exists.",
+      "section_header": "3.1 Existing Integration Patterns",
+      "line_range": "n/a",
+      "guideline_domain": "data_movement",
+      "guideline_version": "v1",
+      "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+      "evidence_confidence": 0.55
+    },
+    {
+      "quote": "Long Term Retention \u2014 Selected: ADF + Snowflake Pipeline; Reason: Improved reporting and retention capability.",
+      "section_header": "A1 Key Architecture Decisions",
       "line_range": "n/a",
       "guideline_domain": "data_movement",
       "guideline_version": "v1",
@@ -213,7 +231,7 @@
     },
     {
       "quote": "Authentication: Azure AD OAuth2; Service Principal Authentication.",
-      "section": "4.4 Security View \u2013 Dataverse to Snowflake",
+      "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
       "line_range": "n/a",
       "guideline_domain": "security",
       "guideline_version": "v1",
@@ -222,7 +240,7 @@
     },
     {
       "quote": "Authorization: Azure RBAC; Snowflake RBAC.",
-      "section": "4.4 Security View \u2013 Dataverse to Snowflake",
+      "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
       "line_range": "n/a",
       "guideline_domain": "security",
       "guideline_version": "v1",
@@ -231,25 +249,25 @@
     },
     {
       "quote": "Controls: Azure AD Authentication; RBAC Enforcement; Read Only Access.",
-      "section": "4.5 Security View \u2013 Power Apps Access",
+      "section_header": "4.5 Security View \u2013 Power Apps Access",
       "line_range": "n/a",
       "guideline_domain": "security",
       "guideline_version": "v1",
       "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.9
+      "evidence_confidence": 0.95
+    },
+    {
+      "quote": "Existing RBAC controls must be preserved.",
+      "section_header": "2.3 Architecturally Significant Constraints",
+      "line_range": "n/a",
+      "guideline_domain": "security",
+      "guideline_version": "v1",
+      "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
+      "evidence_confidence": 0.8
     },
     {
       "quote": "Encryption: TLS 1.2+; Snowflake Triple Key Encryption.",
-      "section": "4.4 Security View \u2013 Dataverse to Snowflake",
-      "line_range": "n/a",
-      "guideline_domain": "security",
-      "guideline_version": "v1",
-      "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.85
-    },
-    {
-      "quote": "Network: Private Endpoints; Service Endpoints.",
-      "section": "4.4 Security View \u2013 Dataverse to Snowflake",
+      "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
       "line_range": "n/a",
       "guideline_domain": "security",
       "guideline_version": "v1",
@@ -257,17 +275,17 @@
       "evidence_confidence": 0.9
     },
     {
-      "quote": "User Access: Operations User \u2192 Power Apps \u2192 Power Platform Gateway \u2192 Snowflake.",
-      "section": "4.5 Security View \u2013 Power Apps Access",
+      "quote": "Network: Private Endpoints; Service Endpoints.",
+      "section_header": "4.4 Security View \u2013 Dataverse to Snowflake",
       "line_range": "n/a",
       "guideline_domain": "security",
       "guideline_version": "v1",
       "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.6
+      "evidence_confidence": 0.95
     },
     {
-      "quote": "Availability: Platform Uptime 99.9%. Reliability: RTO 30 minutes; RPO Zero data loss; MTTR 2\u20133 hours.",
-      "section": "2.4 Cross Functional Requirements",
+      "quote": "Availability: Platform Uptime: 99.9%. Reliability: RTO: 30 minutes; RPO: Zero data loss; MTTR: 2\u20133 hours.",
+      "section_header": "2.4 Cross Functional Requirements",
       "line_range": "n/a",
       "guideline_domain": "resilience",
       "guideline_version": "v1",
@@ -276,21 +294,21 @@
     },
     {
       "quote": "Dynamics: Native HA. ADF: Automatic Retry. Azure SQL: Geo Replication. Snowflake: Cross Region Replication. ADLS: ZRS / GRS.",
-      "section": "4.3 Resiliency Design",
+      "section_header": "4.3 Resiliency Design",
       "line_range": "n/a",
       "guideline_domain": "resilience",
       "guideline_version": "v1",
       "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.92
+      "evidence_confidence": 0.9
     },
     {
       "quote": "Reliability: RTO, RPO, Replication.",
-      "section": "9. Alignment with ISG Architecture Principles",
+      "section_header": "9. Alignment with ISG Architecture Principles",
       "line_range": "n/a",
       "guideline_domain": "resilience",
       "guideline_version": "v1",
       "source_hash": "3f2a5f273f09a807adad9636f51fdbbb61e478e18c1aa7ff9714d9cd8a212027",
-      "evidence_confidence": 0.5
+      "evidence_confidence": 0.4
     }
   ]
 }

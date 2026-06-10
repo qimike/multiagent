@@ -94,7 +94,7 @@ evaluator keeps **finding** (the conclusion), **reasoning** (why the evidence
 satisfies/violates the guideline), and **evidence** (the exact quotes) distinct.
 
 Every evidence item carries full **provenance** for auditability/reproducibility:
-`section`, `line_range`, `guideline_domain`, `guideline_version`, `source_hash`, plus an
+`section_header`, `line_range`, `guideline_domain`, `guideline_version`, `source_hash`, plus an
 `evidence_confidence` (how strongly that quote supports the finding). Synthesis preserves
 these fields verbatim (it aggregates, it does not re-evaluate), and Python backfills the
 provenance after the run so it is never lost.
@@ -118,11 +118,11 @@ bad enum values) fails loudly with a non-zero exit instead of shipping silently.
     { "guideline_domain": "security", "guideline_version": "v1",
       "status": "PARTIAL", "severity": "HIGH",
       "finding": "…", "reasoning": "…", "confidence": 0.9,
-      "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30",
+      "evidence": [ { "quote": "…exact SAD text…", "section_header": "2.4 Cross Functional Requirements", "line_range": "29-30",
                       "guideline_domain": "security", "guideline_version": "v1", "source_hash": "…",
                       "evidence_confidence": 0.98 } ] }
   ],
-  "evidence": [ { "quote": "…exact SAD text…", "section": "Security", "line_range": "29-30",
+  "evidence": [ { "quote": "…exact SAD text…", "section_header": "2.4 Cross Functional Requirements", "line_range": "29-30",
                   "guideline_domain": "security", "guideline_version": "v1", "source_hash": "…" } ]
 }
 ```
